@@ -1,5 +1,6 @@
 import os
 
+import psycopg
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
@@ -30,3 +31,12 @@ def migrated_database():
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+@pytest.fixture
+def db():
+    # everything a test writes is rolled back, so the test database stays clean
+    conn = psycopg.connect(os.environ["DATABASE_URL"])
+    yield conn
+    conn.rollback()
+    conn.close()
