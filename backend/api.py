@@ -20,5 +20,5 @@ def health():
         with psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
             conn.execute("SELECT 1")
     except psycopg.OperationalError:
-        raise HTTPException(status_code=503, detail="Banco de dados indisponível")
+        raise HTTPException(status_code=503, detail="Banco de dados indisponível") from None
     return {"status": "ok", "banco": "ok"}
