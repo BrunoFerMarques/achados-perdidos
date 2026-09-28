@@ -4,9 +4,12 @@ import psycopg
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
+from routers import users
+
 load_dotenv()
 
 app = FastAPI(title="Achados e Perdidos API")
+app.include_router(users.router)
 
 
 @app.get("/")
