@@ -4,6 +4,8 @@ import psycopg
 import pytest
 
 MARIA = {"name": "Maria Silva", "email": "maria@example.com", "password": "senha-forte"}
+JOAO = {"name": "João Souza", "email": "joao@example.com", "password": "outra-senha"}
+ANA = {"name": "Ana Lima", "email": "ana@example.com", "password": "mais-uma-senha"}
 
 
 @pytest.fixture(autouse=True)
@@ -76,6 +78,39 @@ def test_get_unknown_user_returns_404(client):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Usuário não encontrado"}
+
+
+def test_list_users_returns_users_in_creation_order(client):
+    created = [client.post("/v1/users", json=user).json() for user in (MARIA, JOAO, ANA)]
+
+    response = client.get("/v1/users")
+
+    assert response.status_code == 200
+    assert response.json() == created
+
+
+def test_list_users_is_paginated(client):
+    for user in (MARIA, JOAO, ANA):
+        client.post("/v1/users", json=user)
+
+    response = client.get("/v1/users", params={"limit": 1, "offset": 1})
+
+    assert response.status_code == 200
+    assert [user["email"] for user in response.json()] == ["joao@example.com"]
+
+
+def test_list_users_returns_empty_list_when_there_are_no_users(client):
+    response = client.get("/v1/users")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
+def test_list_users_with_invalid_pagination_returns_422(client, params):
+    response = client.get("/v1/users", params=params)
+
+    assert response.status_code == 422
 
 
 def test_returns_503_when_database_is_down(client, monkeypatch):

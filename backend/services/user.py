@@ -28,3 +28,10 @@ def get_user(conn: psycopg.Connection, user_id: int) -> dict | None:
     return conn.execute(
         "SELECT id, name, email, created_at FROM users WHERE id = %s", (user_id,)
     ).fetchone()
+
+
+def list_users(conn: psycopg.Connection, limit: int, offset: int) -> list[dict]:
+    return conn.execute(
+        "SELECT id, name, email, created_at FROM users ORDER BY id LIMIT %s OFFSET %s",
+        (limit, offset),
+    ).fetchall()

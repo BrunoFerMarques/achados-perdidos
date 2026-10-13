@@ -1,7 +1,7 @@
 from typing import Annotated
 
 import psycopg
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from db import get_conn
 from schemas.user import UserCreate, UserOut
@@ -22,6 +22,15 @@ def create_user(payload: UserCreate, conn: Conn):
         return user_service.create_user(conn, payload.name, payload.email, payload.password)
     except user_service.EmailAlreadyExists:
         raise HTTPException(status_code=409, detail="E-mail já cadastrado") from None
+
+
+@router.get("", response_model=list[UserOut])
+def list_users(
+    conn: Conn,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    return user_service.list_users(conn, limit, offset)
 
 
 @router.get("/{user_id}", response_model=UserOut)
