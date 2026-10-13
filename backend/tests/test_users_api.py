@@ -2,6 +2,7 @@ import os
 
 import psycopg
 import pytest
+from argon2 import PasswordHasher
 
 MARIA = {"name": "Maria Silva", "email": "maria@example.com", "password": "senha-forte"}
 JOAO = {"name": "João Souza", "email": "joao@example.com", "password": "outra-senha"}
@@ -109,6 +110,65 @@ def test_list_users_returns_empty_list_when_there_are_no_users(client):
 @pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
 def test_list_users_with_invalid_pagination_returns_422(client, params):
     response = client.get("/v1/users", params=params)
+
+    assert response.status_code == 422
+
+
+def test_update_user_changes_only_the_given_fields(client):
+    created = client.post("/v1/users", json=MARIA).json()
+
+    response = client.patch(f"/v1/users/{created['id']}", json={"name": "  Maria Souza  "})
+
+    assert response.status_code == 200
+    assert response.json() == {**created, "name": "Maria Souza"}
+    assert client.get(f"/v1/users/{created['id']}").json()["name"] == "Maria Souza"
+
+
+def test_update_user_password_stores_new_hash(client):
+    user_id = client.post("/v1/users", json=MARIA).json()["id"]
+
+    response = client.patch(f"/v1/users/{user_id}", json={"password": "nova-senha-forte"})
+
+    assert response.status_code == 200
+    assert "password_hash" not in response.json()
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        (password_hash,) = conn.execute(
+            "SELECT password_hash FROM users WHERE id = %s", (user_id,)
+        ).fetchone()
+    assert PasswordHasher().verify(password_hash, "nova-senha-forte")
+
+
+def test_update_user_to_taken_email_returns_409(client):
+    client.post("/v1/users", json=MARIA)
+    joao_id = client.post("/v1/users", json=JOAO).json()["id"]
+
+    response = client.patch(f"/v1/users/{joao_id}", json={"email": "MARIA@example.com"})
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "E-mail já cadastrado"}
+
+
+def test_update_unknown_user_returns_404(client):
+    response = client.patch("/v1/users/999", json={"name": "Maria Souza"})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Usuário não encontrado"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"name": None},
+        {"name": "   "},
+        {"email": "maria.example.com"},
+        {"password": "curta"},
+    ],
+)
+def test_update_user_with_invalid_payload_returns_422(client, payload):
+    user_id = client.post("/v1/users", json=MARIA).json()["id"]
+
+    response = client.patch(f"/v1/users/{user_id}", json=payload)
 
     assert response.status_code == 422
 

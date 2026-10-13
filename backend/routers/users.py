@@ -4,7 +4,7 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from db import get_conn
-from schemas.user import UserCreate, UserOut
+from schemas.user import UserCreate, UserOut, UserUpdate
 from services import user as user_service
 
 router = APIRouter(prefix="/v1/users", tags=["users"])
@@ -36,6 +36,19 @@ def list_users(
 @router.get("/{user_id}", response_model=UserOut)
 def get_user(user_id: int, conn: Conn):
     user = user_service.get_user(conn, user_id)
+    if user is None:
+        raise _user_not_found()
+    return user
+
+
+@router.patch("/{user_id}", response_model=UserOut)
+def update_user(user_id: int, payload: UserUpdate, conn: Conn):
+    try:
+        user = user_service.update_user(
+            conn, user_id, payload.name, payload.email, payload.password
+        )
+    except user_service.EmailAlreadyExists:
+        raise HTTPException(status_code=409, detail="E-mail já cadastrado") from None
     if user is None:
         raise _user_not_found()
     return user
