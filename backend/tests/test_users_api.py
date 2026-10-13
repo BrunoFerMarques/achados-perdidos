@@ -62,6 +62,22 @@ def test_invalid_payload_returns_422(client, override):
     assert response.status_code == 422
 
 
+def test_get_user_returns_user(client):
+    created = client.post("/v1/users", json=MARIA).json()
+
+    response = client.get(f"/v1/users/{created['id']}")
+
+    assert response.status_code == 200
+    assert response.json() == created
+
+
+def test_get_unknown_user_returns_404(client):
+    response = client.get("/v1/users/999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Usuário não encontrado"}
+
+
 def test_returns_503_when_database_is_down(client, monkeypatch):
     # nothing listens on port 1, so the connection is refused right away
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@127.0.0.1:1/none")
