@@ -52,3 +52,9 @@ def update_user(user_id: int, payload: UserUpdate, conn: Conn):
     if user is None:
         raise _user_not_found()
     return user
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(user_id: int, conn: Conn):
+    if not user_service.delete_user(conn, user_id):
+        raise _user_not_found()

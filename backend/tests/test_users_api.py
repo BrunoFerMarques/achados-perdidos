@@ -173,6 +173,32 @@ def test_update_user_with_invalid_payload_returns_422(client, payload):
     assert response.status_code == 422
 
 
+def test_delete_user_returns_204_and_removes_user(client):
+    user_id = client.post("/v1/users", json=MARIA).json()["id"]
+
+    response = client.delete(f"/v1/users/{user_id}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert client.get(f"/v1/users/{user_id}").status_code == 404
+
+
+def test_deleted_user_email_can_be_used_again(client):
+    user_id = client.post("/v1/users", json=MARIA).json()["id"]
+    client.delete(f"/v1/users/{user_id}")
+
+    response = client.post("/v1/users", json=MARIA)
+
+    assert response.status_code == 201
+
+
+def test_delete_unknown_user_returns_404(client):
+    response = client.delete("/v1/users/999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Usuário não encontrado"}
+
+
 def test_returns_503_when_database_is_down(client, monkeypatch):
     # nothing listens on port 1, so the connection is refused right away
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@127.0.0.1:1/none")

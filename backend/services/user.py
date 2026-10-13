@@ -61,3 +61,7 @@ def update_user(
             ).fetchone()
     except psycopg.errors.UniqueViolation:
         raise EmailAlreadyExists(email) from None
+
+
+def delete_user(conn: psycopg.Connection, user_id: int) -> bool:
+    return conn.execute("DELETE FROM users WHERE id = %s", (user_id,)).rowcount == 1
