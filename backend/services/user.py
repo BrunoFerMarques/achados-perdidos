@@ -1,70 +1,50 @@
+from collections.abc import Sequence
+
 from argon2 import PasswordHasher
-from psycopg.errors import UniqueViolation
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
+from domain.errors import UserNotFound
 from models import User
-
-_hasher = PasswordHasher()
-
-
-class EmailAlreadyExists(Exception):
-    pass
+from repositories.unit_of_work import UnitOfWork
 
 
-def _commit(session: Session, email: str | None) -> None:
-    try:
-        session.commit()
-    except IntegrityError as error:
-        session.rollback()
-        # the e-mail index is the only unique constraint on users
-        if isinstance(error.orig, UniqueViolation):
-            raise EmailAlreadyExists(email) from None
-        raise
+class UserService:
+    def __init__(self, uow: UnitOfWork, password_hasher: PasswordHasher):
+        self._uow = uow
+        self._password_hasher = password_hasher
 
+    def create(self, name: str, email: str, password: str) -> User:
+        user = User(name=name, email=email, password_hash=self._password_hasher.hash(password))
+        self._uow.users.add(user)
+        self._uow.commit()
+        return user
 
-def create_user(session: Session, name: str, email: str, password: str) -> User:
-    user = User(name=name, email=email, password_hash=_hasher.hash(password))
-    session.add(user)
-    _commit(session, email)
-    return user
+    def get(self, user_id: int) -> User:
+        user = self._uow.users.get(user_id)
+        if user is None:
+            raise UserNotFound()
+        return user
 
+    def list_page(self, limit: int, offset: int) -> Sequence[User]:
+        return self._uow.users.list_page(limit, offset)
 
-def get_user(session: Session, user_id: int) -> User | None:
-    return session.get(User, user_id)
+    def update(
+        self,
+        user_id: int,
+        name: str | None = None,
+        email: str | None = None,
+        password: str | None = None,
+    ) -> User:
+        user = self.get(user_id)
+        # None keeps the current value
+        if name is not None:
+            user.name = name
+        if email is not None:
+            user.email = email
+        if password is not None:
+            user.password_hash = self._password_hasher.hash(password)
+        self._uow.commit()
+        return user
 
-
-def list_users(session: Session, limit: int, offset: int) -> list[User]:
-    stmt = select(User).order_by(User.id).limit(limit).offset(offset)
-    return list(session.scalars(stmt))
-
-
-def update_user(
-    session: Session,
-    user_id: int,
-    name: str | None = None,
-    email: str | None = None,
-    password: str | None = None,
-) -> User | None:
-    user = session.get(User, user_id)
-    if user is None:
-        return None
-    # None keeps the current value
-    if name is not None:
-        user.name = name
-    if email is not None:
-        user.email = email
-    if password is not None:
-        user.password_hash = _hasher.hash(password)
-    _commit(session, email)
-    return user
-
-
-def delete_user(session: Session, user_id: int) -> bool:
-    user = session.get(User, user_id)
-    if user is None:
-        return False
-    session.delete(user)
-    session.commit()
-    return True
+    def delete(self, user_id: int) -> None:
+        self._uow.users.delete(self.get(user_id))
+        self._uow.commit()
