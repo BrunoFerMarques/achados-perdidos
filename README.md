@@ -42,6 +42,10 @@ ruff format .                    # formata o código
 
 `TEST_DATABASE_URL` nunca deve apontar para produção: os testes gravam dados. O pytest se recusa a rodar se ela não estiver definida ou for igual a `DATABASE_URL`.
 
+## Arquitetura
+
+O backend é dividido em camadas (`routers` → `services` → `repositories` → `models`, com as regras puras em `domain`) e usa Repository, Unit of Work e injeção de dependência. Antes de criar uma feature, leia [docs/arquitetura.md](docs/arquitetura.md): ele explica onde cada coisa fica, quais padrões estão planejados para as regras do escopo e traz o passo a passo para adicionar uma feature.
+
 ## Migrações
 
 As tabelas são definidas como models do SQLAlchemy em `backend/models/`. Cada mudança no banco é uma migração do Alembic em `backend/migrations/versions/`, gerada a partir dos models.
