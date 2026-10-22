@@ -1,9 +1,8 @@
-import os
-
-import psycopg
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from sqlalchemy import select
 
+from db import SessionDep
 from routers import users
 
 load_dotenv()
@@ -18,10 +17,7 @@ def raiz():
 
 
 @app.get("/health")
-def health():
-    try:
-        with psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
-            conn.execute("SELECT 1")
-    except psycopg.OperationalError:
-        raise HTTPException(status_code=503, detail="Banco de dados indisponível") from None
+def health(session: SessionDep):
+    # an unreachable database was already answered with 503 by get_session
+    session.execute(select(1))
     return {"status": "ok", "banco": "ok"}

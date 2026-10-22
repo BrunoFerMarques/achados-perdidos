@@ -1,12 +1,13 @@
 import os
 
-import psycopg
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 import migrate
 from api import app
+from db import get_engine
 
 
 def pytest_configure(config):
@@ -35,8 +36,10 @@ def client():
 
 @pytest.fixture
 def db():
-    # everything a test writes is rolled back, so the test database stays clean
-    conn = psycopg.connect(os.environ["DATABASE_URL"])
-    yield conn
-    conn.rollback()
-    conn.close()
+    # everything a test writes is rolled back, so the test database stays clean;
+    # a commit inside the test only releases a savepoint
+    with get_engine().connect() as conn:
+        transaction = conn.begin()
+        with Session(conn, join_transaction_mode="create_savepoint") as session:
+            yield session
+        transaction.rollback()
