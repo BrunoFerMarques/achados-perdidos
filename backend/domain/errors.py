@@ -23,6 +23,14 @@ class InvalidCredentials(UnauthorizedError):
     message = "E-mail ou senha inválidos"
 
 
+class NotAuthenticated(UnauthorizedError):
+    message = "Não autenticado"
+
+
+class InvalidToken(UnauthorizedError):
+    message = "Token inválido ou expirado"
+
+
 class UserNotFound(NotFoundError):
     message = "Usuário não encontrado"
 

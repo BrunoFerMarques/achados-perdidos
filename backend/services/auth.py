@@ -1,7 +1,7 @@
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 
-from domain.errors import InvalidCredentials
+from domain.errors import InvalidCredentials, InvalidToken
 from models import User
 from repositories.unit_of_work import UnitOfWork
 from services.token import TokenService
@@ -19,6 +19,13 @@ class AuthService:
         if user is None or not self._password_matches(user, password):
             raise InvalidCredentials()
         return self._tokens.issue(user.id)
+
+    def authenticate(self, token: str) -> User:
+        user = self._uow.users.get(self._tokens.user_id(token))
+        # the token is still signed after the account is deleted
+        if user is None:
+            raise InvalidToken()
+        return user
 
     def _password_matches(self, user: User, password: str) -> bool:
         try:
