@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Self
 
-from pydantic import BaseModel, EmailStr, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, StringConstraints, model_validator
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Password = Annotated[str, StringConstraints(min_length=8, max_length=128)]
@@ -29,6 +29,9 @@ class UserUpdate(BaseModel):
 
 
 class UserOut(BaseModel):
+    # built from the User model returned by the services
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     email: str

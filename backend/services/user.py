@@ -1,67 +1,50 @@
-import psycopg
+from collections.abc import Sequence
+
 from argon2 import PasswordHasher
 
-_hasher = PasswordHasher()
+from domain.errors import UserNotFound
+from models import User
+from repositories.unit_of_work import UnitOfWork
 
 
-class EmailAlreadyExists(Exception):
-    pass
+class UserService:
+    def __init__(self, uow: UnitOfWork, password_hasher: PasswordHasher):
+        self._uow = uow
+        self._password_hasher = password_hasher
 
+    def create(self, name: str, email: str, password: str) -> User:
+        user = User(name=name, email=email, password_hash=self._password_hasher.hash(password))
+        self._uow.users.add(user)
+        self._uow.commit()
+        return user
 
-def create_user(conn: psycopg.Connection, name: str, email: str, password: str) -> dict:
-    try:
-        # commits on a fresh connection, becomes a savepoint inside an open transaction
-        with conn.transaction():
-            return conn.execute(
-                """
-                INSERT INTO users (name, email, password_hash)
-                VALUES (%s, %s, %s)
-                RETURNING id, name, email, created_at
-                """,
-                (name, email, _hasher.hash(password)),
-            ).fetchone()
-    except psycopg.errors.UniqueViolation:
-        raise EmailAlreadyExists(email) from None
+    def get(self, user_id: int) -> User:
+        user = self._uow.users.get(user_id)
+        if user is None:
+            raise UserNotFound()
+        return user
 
+    def list_page(self, limit: int, offset: int) -> Sequence[User]:
+        return self._uow.users.list_page(limit, offset)
 
-def get_user(conn: psycopg.Connection, user_id: int) -> dict | None:
-    return conn.execute(
-        "SELECT id, name, email, created_at FROM users WHERE id = %s", (user_id,)
-    ).fetchone()
+    def update(
+        self,
+        user_id: int,
+        name: str | None = None,
+        email: str | None = None,
+        password: str | None = None,
+    ) -> User:
+        user = self.get(user_id)
+        # None keeps the current value
+        if name is not None:
+            user.name = name
+        if email is not None:
+            user.email = email
+        if password is not None:
+            user.password_hash = self._password_hasher.hash(password)
+        self._uow.commit()
+        return user
 
-
-def list_users(conn: psycopg.Connection, limit: int, offset: int) -> list[dict]:
-    return conn.execute(
-        "SELECT id, name, email, created_at FROM users ORDER BY id LIMIT %s OFFSET %s",
-        (limit, offset),
-    ).fetchall()
-
-
-def update_user(
-    conn: psycopg.Connection,
-    user_id: int,
-    name: str | None = None,
-    email: str | None = None,
-    password: str | None = None,
-) -> dict | None:
-    password_hash = _hasher.hash(password) if password is not None else None
-    try:
-        with conn.transaction():
-            # a NULL parameter keeps the column as it is
-            return conn.execute(
-                """
-                UPDATE users
-                SET name = COALESCE(%s, name),
-                    email = COALESCE(%s, email),
-                    password_hash = COALESCE(%s, password_hash)
-                WHERE id = %s
-                RETURNING id, name, email, created_at
-                """,
-                (name, email, password_hash, user_id),
-            ).fetchone()
-    except psycopg.errors.UniqueViolation:
-        raise EmailAlreadyExists(email) from None
-
-
-def delete_user(conn: psycopg.Connection, user_id: int) -> bool:
-    return conn.execute("DELETE FROM users WHERE id = %s", (user_id,)).rowcount == 1
+    def delete(self, user_id: int) -> None:
+        self._uow.users.delete(self.get(user_id))
+        self._uow.commit()

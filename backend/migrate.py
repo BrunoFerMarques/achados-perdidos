@@ -1,41 +1,20 @@
-"""Apply pending SQL migrations from migrations/, in filename order.
+"""Apply pending migrations from migrations/versions/ to DATABASE_URL.
 
-Usage: python migrate.py
+Usage: python migrate.py  (same as `alembic upgrade head`)
+
+Kept as the entry point so the Render start command and the tests don't depend on the Alembic CLI.
 """
 
-import os
 from pathlib import Path
 
-import psycopg
-from dotenv import load_dotenv
+from alembic import command
+from alembic.config import Config
 
-MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+ALEMBIC_INI = Path(__file__).parent / "alembic.ini"
 
 
 def main():
-    load_dotenv()
-    with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                version     TEXT PRIMARY KEY,
-                applied_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-            )
-            """
-        )
-        applied = {version for (version,) in conn.execute("SELECT version FROM schema_migrations")}
-
-        pending = [f for f in sorted(MIGRATIONS_DIR.glob("*.sql")) if f.name not in applied]
-        if not pending:
-            print("No pending migrations.")
-            return
-
-        for file in pending:
-            # one transaction per file: a failing migration leaves nothing behind
-            with conn.transaction():
-                conn.execute(file.read_text(encoding="utf-8"))
-                conn.execute("INSERT INTO schema_migrations (version) VALUES (%s)", (file.name,))
-            print(f"Applied: {file.name}")
+    command.upgrade(Config(ALEMBIC_INI), "head")
 
 
 if __name__ == "__main__":

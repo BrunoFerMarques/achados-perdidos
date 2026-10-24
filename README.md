@@ -42,9 +42,29 @@ ruff format .                    # formata o código
 
 `TEST_DATABASE_URL` nunca deve apontar para produção: os testes gravam dados. O pytest se recusa a rodar se ela não estiver definida ou for igual a `DATABASE_URL`.
 
+## Arquitetura
+
+O backend é dividido em camadas (`routers` → `services` → `repositories` → `models`, com as regras puras em `domain`) e usa Repository, Unit of Work e injeção de dependência. Antes de criar uma feature, leia [docs/arquitetura.md](docs/arquitetura.md): ele explica onde cada coisa fica, quais padrões estão planejados para as regras do escopo e traz o passo a passo para adicionar uma feature.
+
 ## Migrações
 
-Toda mudança no banco é um arquivo novo em `backend/migrations/`, numerado em ordem (`001_...sql`, `002_...sql`). O `python migrate.py` aplica só os arquivos que ainda não rodaram, cada um em uma transação, e registra o que foi aplicado na tabela `schema_migrations`.
+As tabelas são definidas como models do SQLAlchemy em `backend/models/`. Cada mudança no banco é uma migração do Alembic em `backend/migrations/versions/`, gerada a partir dos models.
+
+Para criar ou alterar uma tabela:
+
+1. Crie ou edite o model. Um model novo precisa ser importado em `backend/models/__init__.py`, senão o Alembic não o enxerga.
+2. Gere a migração. O Alembic compara os models com o banco do `DATABASE_URL`, então esse banco precisa estar com todas as migrações aplicadas:
+
+   ```bash
+   cd backend
+   python migrate.py                                   # deixa o banco local em dia
+   alembic revision --autogenerate -m "create items"   # gera a migração a partir dos models
+   python migrate.py                                   # aplica a migração nova
+   ```
+
+3. Revise o arquivo gerado antes de commitar. O autogenerate não detecta funções, triggers nem tipos `ENUM` alterados: escreva essas partes à mão com `op.execute(...)`.
+
+O `python migrate.py` (o mesmo que `alembic upgrade head`) aplica só as migrações que ainda não rodaram, cada uma em uma transação, e registra a versão atual na tabela `alembic_version`. Para ver o SQL sem executar: `alembic upgrade head --sql`.
 
 Nunca edite uma migração que já está no `master`: crie uma nova.
 
