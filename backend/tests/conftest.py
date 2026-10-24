@@ -1,5 +1,6 @@
 import os
 
+import psycopg
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
@@ -19,6 +20,9 @@ def pytest_configure(config):
         )
     if test_database_url == os.environ.get("DATABASE_URL"):
         raise pytest.UsageError("TEST_DATABASE_URL não pode ser o mesmo banco de DATABASE_URL.")
+
+    # CI has no .env; any secret works, since the tests sign and check their own tokens
+    os.environ.setdefault("JWT_SECRET", "test-secret-only-for-the-pytest-run")
 
     # the API reads DATABASE_URL on every request; during tests it must hit the test database
     os.environ["DATABASE_URL"] = test_database_url
@@ -43,3 +47,15 @@ def db():
         with Session(conn, join_transaction_mode="create_savepoint") as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def empty_users():
+    # the API commits for real, so clear the table before and after each test
+    def truncate():
+        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+            conn.execute("TRUNCATE users RESTART IDENTITY")
+
+    truncate()
+    yield
+    truncate()

@@ -9,16 +9,7 @@ JOAO = {"name": "João Souza", "email": "joao@example.com", "password": "outra-s
 ANA = {"name": "Ana Lima", "email": "ana@example.com", "password": "mais-uma-senha"}
 
 
-@pytest.fixture(autouse=True)
-def empty_users():
-    # the API commits for real, so clear the table before and after each test
-    def truncate():
-        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-            conn.execute("TRUNCATE users RESTART IDENTITY")
-
-    truncate()
-    yield
-    truncate()
+pytestmark = pytest.mark.usefixtures("empty_users")
 
 
 def test_create_user_returns_201_without_password(client):
