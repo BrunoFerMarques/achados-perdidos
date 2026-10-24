@@ -15,6 +15,14 @@ class ConflictError(DomainError):
     """The operation clashes with data that already exists."""
 
 
+class UnauthorizedError(DomainError):
+    """The client didn't prove who it is."""
+
+
+class InvalidCredentials(UnauthorizedError):
+    message = "E-mail ou senha inválidos"
+
+
 class UserNotFound(NotFoundError):
     message = "Usuário não encontrado"
 
