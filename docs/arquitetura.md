@@ -105,7 +105,7 @@ Exemplo: cadastro de pontos de coleta.
 6. **`dependencies.py`**: `get_collection_point_service` e o alias `CollectionPointServiceDep`.
 7. **`schemas/`**: DTOs de entrada e saída.
 8. **`routers/`**: as rotas e o `include_router` em `api.py`. Rota que exige login declara `user: CurrentUserDep`.
-9. **Testes**: unitários para o que estiver em `domain/` (sem banco) e de API para o fluxo. Cite a regra no nome do teste ou num comentário (`# RN13`) para manter a rastreabilidade.
+9. **Testes**: em `tests/unit/` o que estiver em `domain/` (sem banco), em `tests/integration/` o repository e as constraints, e em `tests/api/` o fluxo pelas rotas. Cite a regra no nome do teste ou num comentário (`# RN13`) para manter a rastreabilidade.
 
 ---
 

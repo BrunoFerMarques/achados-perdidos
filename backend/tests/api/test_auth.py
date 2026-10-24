@@ -9,8 +9,6 @@ from services.token import TokenService
 MARIA = {"name": "Maria Silva", "email": "maria@example.com", "password": "senha-forte"}
 MARIA_LOGIN = {"email": MARIA["email"], "password": MARIA["password"]}
 
-pytestmark = pytest.mark.usefixtures("empty_users")
-
 
 @pytest.fixture
 def maria(client):

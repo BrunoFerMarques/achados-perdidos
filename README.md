@@ -35,12 +35,19 @@ uvicorn api:app --reload         # http://localhost:8000/docs
 
 ```bash
 cd backend
-pytest                           # aplica as migrações no TEST_DATABASE_URL e roda os testes
+pytest                           # todos os testes; aplica as migrações no TEST_DATABASE_URL
+pytest tests/unit                # só os unitários, sem banco
 ruff check .                     # lint
 ruff format .                    # formata o código
 ```
 
-`TEST_DATABASE_URL` nunca deve apontar para produção: os testes gravam dados. O pytest se recusa a rodar se ela não estiver definida ou for igual a `DATABASE_URL`.
+| Pasta                | O que testa                                              | Banco                                          |
+| -------------------- | -------------------------------------------------------- | ---------------------------------------------- |
+| `tests/unit/`        | Regras puras e classes sem I/O                           | Não usa                                        |
+| `tests/integration/` | Models, repositories, Unit of Work e migrações           | Usa; cada teste é desfeito no fim              |
+| `tests/api/`         | As rotas, pela API HTTP                                  | Usa; a tabela `users` é limpa a cada teste     |
+
+`TEST_DATABASE_URL` nunca deve apontar para produção: os testes gravam dados. Os testes de `integration/` e `api/` se recusam a rodar se ela não estiver definida ou for igual a `DATABASE_URL`.
 
 ## Arquitetura
 
