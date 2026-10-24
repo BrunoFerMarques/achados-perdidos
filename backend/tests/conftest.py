@@ -1,5 +1,6 @@
 import os
 
+import psycopg
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
@@ -43,3 +44,15 @@ def db():
         with Session(conn, join_transaction_mode="create_savepoint") as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def empty_users():
+    # the API commits for real, so clear the table before and after each test
+    def truncate():
+        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+            conn.execute("TRUNCATE users RESTART IDENTITY")
+
+    truncate()
+    yield
+    truncate()
