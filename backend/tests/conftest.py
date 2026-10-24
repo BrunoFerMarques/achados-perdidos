@@ -1,14 +1,9 @@
 import os
 
-import psycopg
 import pytest
 from dotenv import load_dotenv
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 import migrate
-from api import app
-from db import get_engine
 
 
 def pytest_configure(config):
@@ -31,31 +26,3 @@ def pytest_configure(config):
 @pytest.fixture(scope="session", autouse=True)
 def migrated_database():
     migrate.main()
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
-
-
-@pytest.fixture
-def db():
-    # everything a test writes is rolled back, so the test database stays clean;
-    # a commit inside the test only releases a savepoint
-    with get_engine().connect() as conn:
-        transaction = conn.begin()
-        with Session(conn, join_transaction_mode="create_savepoint") as session:
-            yield session
-        transaction.rollback()
-
-
-@pytest.fixture
-def empty_users():
-    # the API commits for real, so clear the table before and after each test
-    def truncate():
-        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-            conn.execute("TRUNCATE users RESTART IDENTITY")
-
-    truncate()
-    yield
-    truncate()

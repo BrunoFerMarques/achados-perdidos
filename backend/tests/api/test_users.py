@@ -9,9 +9,6 @@ JOAO = {"name": "João Souza", "email": "joao@example.com", "password": "outra-s
 ANA = {"name": "Ana Lima", "email": "ana@example.com", "password": "mais-uma-senha"}
 
 
-pytestmark = pytest.mark.usefixtures("empty_users")
-
-
 def test_create_user_returns_201_without_password(client):
     response = client.post("/v1/users", json=MARIA)
 
