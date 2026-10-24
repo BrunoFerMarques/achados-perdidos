@@ -68,14 +68,15 @@ O service não sabe que existe HTTP, e o router não sabe que existe banco.
 | Injeção de dependência         | `dependencies.py`, construtores dos services             | O service recebe o que usa, em vez de criar. Nos testes dá para trocar qualquer dependência.               |
 | Exceções de domínio            | `domain/errors.py`, `api.py`                             | O service lança `UserNotFound`; só o `api.py` sabe que isso vira 404.                                       |
 | Tradução de erros na borda     | `CONFLICTS` em `repositories/unit_of_work.py`            | Violação de constraint conhecida vira erro de domínio; qualquer outra continua sendo bug e gera 500.        |
+| Autenticação por token (JWT)   | `services/auth.py`, `services/token.py`, `CurrentUserDep` em `dependencies.py` | `POST /v1/auth/login` devolve um token Bearer que expira em 1 hora. A rota que exige login recebe `user: CurrentUserDep`; o token é validado antes da rota rodar e o service nunca lê cabeçalho HTTP. |
 
-Hierarquia de erros: `DomainError` → `NotFoundError` (404) e `ConflictError` (409). Um erro novo herda de uma delas e já sai com o status certo, sem `try/except` no router.
+Hierarquia de erros: `DomainError` → `NotFoundError` (404), `ConflictError` (409) e `UnauthorizedError` (401, com o cabeçalho `WWW-Authenticate: Bearer`). Um erro novo herda de uma delas e já sai com o status certo, sem `try/except` no router.
 
 ---
 
 ## 4. Padrões planejados
 
-> **Ainda não implementados.** O código atual só tem o cadastro de usuários. Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
+> **Ainda não implementados.** O código atual só tem o cadastro de usuários e o login. Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
 
 | Regra do escopo                                                                | Padrão                                     | Como fica no código                                                                                                                                                       |
 | ------------------------------------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,7 +86,7 @@ Hierarquia de erros: `DomainError` → `NotFoundError` (404) e `ConflictError` (
 | Prazos (RN03, RN04, RN33, RN44)                                                | Relógio injetável                          | `Clock` em `domain/`, com `SystemClock` em produção e um relógio falso nos testes. Nenhuma regra chama `datetime.now()` direto ([§15](diagrama.md#15-estratégia-de-testes)). |
 | Notificação de match (RN30, RN31)                                              | Observer / eventos de domínio              | O service do item publica "item ficou disponível"; um handler calcula o match e notifica. Registrar item não depende de notificação. RN31 vira constraint única no par relato × item. |
 | Histórico de custódia (RN42, RN43)                                             | Registro só de inserção                    | O repository do histórico só tem `add`, sem atualizar nem apagar.                                                                                                          |
-| Permissões ([§11](diagrama.md#11-permissões), RN41)                            | Policy                                     | Funções em `domain/permissions.py` que respondem "este usuário pode operar este item?". Negação lança `PermissionDenied` (403). Nada de `if papel == ...` espalhado nas rotas. |
+| Permissões ([§11](diagrama.md#11-permissões), RN41)                            | Policy                                     | Funções em `domain/permissions.py` que respondem "este usuário pode operar este item?", recebendo o usuário de `CurrentUserDep`. Negação lança `PermissionDenied` (403). Nada de `if papel == ...` espalhado nas rotas. |
 | Parâmetros do sistema ([§12](diagrama.md#12-parâmetros-do-sistema))            | Objeto de configuração                     | Um objeto com os prazos e limites, injetado nos services pelo `dependencies.py`. Os testes passam valores próprios.                                                        |
 | Listagem pública com filtros                                                   | Método de consulta no repository           | Filtros opcionais montados no repository. O service só repassa o que veio da requisição.                                                                                   |
 | Privacidade ([§10](diagrama.md#10-privacidade))                                | Um DTO por público                         | Schemas diferentes para público, achador, reivindicante e atendente. O que não deve aparecer simplesmente não existe no schema daquele público.                            |
@@ -103,7 +104,7 @@ Exemplo: cadastro de pontos de coleta.
 5. **`services/`**: `CollectionPointService(uow, ...)`, com um método por caso de uso e um `commit()` no fim de cada um que altera dados.
 6. **`dependencies.py`**: `get_collection_point_service` e o alias `CollectionPointServiceDep`.
 7. **`schemas/`**: DTOs de entrada e saída.
-8. **`routers/`**: as rotas e o `include_router` em `api.py`.
+8. **`routers/`**: as rotas e o `include_router` em `api.py`. Rota que exige login declara `user: CurrentUserDep`.
 9. **Testes**: unitários para o que estiver em `domain/` (sem banco) e de API para o fluxo. Cite a regra no nome do teste ou num comentário (`# RN13`) para manter a rastreabilidade.
 
 ---
