@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session
 from db import get_engine
 
 
+@pytest.fixture(autouse=True)
+def use_test_database(test_database):
+    """Every test here touches a database, so make sure it is the test one."""
+
+
 @pytest.fixture
 def db():
     # everything a test writes is rolled back, so the test database stays clean;

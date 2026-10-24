@@ -13,7 +13,7 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def empty_users():
+def empty_users(test_database):
     # the API commits for real, so every test starts and ends with an empty users table
     def truncate():
         with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
