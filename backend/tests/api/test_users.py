@@ -195,3 +195,15 @@ def test_returns_503_when_database_is_down(client, monkeypatch):
 
     assert response.status_code == 503
     assert response.json() == {"detail": "Banco de dados indisponível"}
+
+
+def test_new_user_is_usuario(client):
+    response = client.post("/v1/users", json=MARIA)
+
+    assert response.json()["role"] == "usuario"
+
+
+def test_cannot_register_as_admin(client):
+    response = client.post("/v1/users", json={**MARIA, "role": "admin"})
+
+    assert response.json()["role"] == "usuario"
