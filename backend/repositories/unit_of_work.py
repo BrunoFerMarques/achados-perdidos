@@ -2,6 +2,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from domain.errors import ConflictError, EmailAlreadyExists
+from repositories.category import CategoryRepository
 from repositories.user import UserRepository
 
 # unique constraints whose violation is a business error, not a bug
@@ -16,6 +17,7 @@ class UnitOfWork:
     def __init__(self, session: Session):
         self._session = session
         self.users = UserRepository(session)
+        self.categories = CategoryRepository(session)
 
     def commit(self) -> None:
         try:
