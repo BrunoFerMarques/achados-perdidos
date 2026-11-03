@@ -5,13 +5,16 @@ from sqlalchemy import select
 
 from db import SessionDep
 from domain.errors import ConflictError, DomainError, NotFoundError, UnauthorizedError
-from routers import auth, users
+from routers import auth, categories, colors, locations, users
 
 load_dotenv()
 
 app = FastAPI(title="Achados e Perdidos API")
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(categories.router)
+app.include_router(locations.router)
+app.include_router(colors.router)
 
 
 def _error_response(status_code: int, headers: dict[str, str] | None = None):
