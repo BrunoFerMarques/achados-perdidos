@@ -4,9 +4,34 @@ import psycopg
 import pytest
 from argon2 import PasswordHasher
 
+from domain.roles import Role
+
 MARIA = {"name": "Maria Silva", "email": "maria@example.com", "password": "senha-forte"}
 JOAO = {"name": "João Souza", "email": "joao@example.com", "password": "outra-senha"}
 ANA = {"name": "Ana Lima", "email": "ana@example.com", "password": "mais-uma-senha"}
+ADMIN = {"name": "Admin", "email": "admin@example.com", "password": "senha-do-admin"}
+
+NOT_AUTHENTICATED = {"detail": "Não autenticado"}
+PERMISSION_DENIED = {"detail": "Sem permissão para esta operação"}
+USER_NOT_FOUND = {"detail": "Usuário não encontrado"}
+
+
+@pytest.fixture
+def maria(signup):
+    return signup(MARIA)
+
+
+@pytest.fixture
+def joao(signup):
+    return signup(JOAO)
+
+
+@pytest.fixture
+def admin(signup):
+    return signup(ADMIN, Role.ADMIN)
+
+
+# --- registering is public ---
 
 
 def test_create_user_returns_201_without_password(client):
@@ -53,138 +78,16 @@ def test_invalid_payload_returns_422(client, override):
     assert response.status_code == 422
 
 
-def test_get_user_returns_user(client):
-    created = client.post("/v1/users", json=MARIA).json()
-
-    response = client.get(f"/v1/users/{created['id']}")
-
-    assert response.status_code == 200
-    assert response.json() == created
-
-
-def test_get_unknown_user_returns_404(client):
-    response = client.get("/v1/users/999")
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Usuário não encontrado"}
-
-
-def test_list_users_returns_users_in_creation_order(client):
-    created = [client.post("/v1/users", json=user).json() for user in (MARIA, JOAO, ANA)]
-
-    response = client.get("/v1/users")
-
-    assert response.status_code == 200
-    assert response.json() == created
-
-
-def test_list_users_is_paginated(client):
-    for user in (MARIA, JOAO, ANA):
-        client.post("/v1/users", json=user)
-
-    response = client.get("/v1/users", params={"limit": 1, "offset": 1})
-
-    assert response.status_code == 200
-    assert [user["email"] for user in response.json()] == ["joao@example.com"]
-
-
-def test_list_users_returns_empty_list_when_there_are_no_users(client):
-    response = client.get("/v1/users")
-
-    assert response.status_code == 200
-    assert response.json() == []
-
-
-@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
-def test_list_users_with_invalid_pagination_returns_422(client, params):
-    response = client.get("/v1/users", params=params)
-
-    assert response.status_code == 422
-
-
-def test_update_user_changes_only_the_given_fields(client):
-    created = client.post("/v1/users", json=MARIA).json()
-
-    response = client.patch(f"/v1/users/{created['id']}", json={"name": "  Maria Souza  "})
-
-    assert response.status_code == 200
-    assert response.json() == {**created, "name": "Maria Souza"}
-    assert client.get(f"/v1/users/{created['id']}").json()["name"] == "Maria Souza"
-
-
-def test_update_user_password_stores_new_hash(client):
-    user_id = client.post("/v1/users", json=MARIA).json()["id"]
-
-    response = client.patch(f"/v1/users/{user_id}", json={"password": "nova-senha-forte"})
-
-    assert response.status_code == 200
-    assert "password_hash" not in response.json()
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        (password_hash,) = conn.execute(
-            "SELECT password_hash FROM users WHERE id = %s", (user_id,)
-        ).fetchone()
-    assert PasswordHasher().verify(password_hash, "nova-senha-forte")
-
-
-def test_update_user_to_taken_email_returns_409(client):
-    client.post("/v1/users", json=MARIA)
-    joao_id = client.post("/v1/users", json=JOAO).json()["id"]
-
-    response = client.patch(f"/v1/users/{joao_id}", json={"email": "MARIA@example.com"})
-
-    assert response.status_code == 409
-    assert response.json() == {"detail": "E-mail já cadastrado"}
-
-
-def test_update_unknown_user_returns_404(client):
-    response = client.patch("/v1/users/999", json={"name": "Maria Souza"})
-
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Usuário não encontrado"}
-
-
-@pytest.mark.parametrize(
-    "payload",
-    [
-        {},
-        {"name": None},
-        {"name": "   "},
-        {"email": "maria.example.com"},
-        {"password": "curta"},
-    ],
-)
-def test_update_user_with_invalid_payload_returns_422(client, payload):
-    user_id = client.post("/v1/users", json=MARIA).json()["id"]
-
-    response = client.patch(f"/v1/users/{user_id}", json=payload)
-
-    assert response.status_code == 422
-
-
-def test_delete_user_returns_204_and_removes_user(client):
-    user_id = client.post("/v1/users", json=MARIA).json()["id"]
-
-    response = client.delete(f"/v1/users/{user_id}")
-
-    assert response.status_code == 204
-    assert response.content == b""
-    assert client.get(f"/v1/users/{user_id}").status_code == 404
-
-
-def test_deleted_user_email_can_be_used_again(client):
-    user_id = client.post("/v1/users", json=MARIA).json()["id"]
-    client.delete(f"/v1/users/{user_id}")
-
+def test_new_user_is_usuario(client):
     response = client.post("/v1/users", json=MARIA)
 
-    assert response.status_code == 201
+    assert response.json()["role"] == "usuario"
 
 
-def test_delete_unknown_user_returns_404(client):
-    response = client.delete("/v1/users/999")
+def test_cannot_register_as_admin(client):
+    response = client.post("/v1/users", json={**MARIA, "role": "admin"})
 
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Usuário não encontrado"}
+    assert response.json()["role"] == "usuario"
 
 
 def test_returns_503_when_database_is_down(client, monkeypatch):
@@ -197,13 +100,250 @@ def test_returns_503_when_database_is_down(client, monkeypatch):
     assert response.json() == {"detail": "Banco de dados indisponível"}
 
 
-def test_new_user_is_usuario(client):
+# --- every other route needs a login ---
+
+PROTECTED_ROUTES = [
+    ("GET", "/v1/users"),
+    ("GET", "/v1/users/1"),
+    ("PATCH", "/v1/users/1"),
+    ("DELETE", "/v1/users/1"),
+    ("PATCH", "/v1/users/1/role"),
+]
+
+
+@pytest.mark.parametrize(("method", "url"), PROTECTED_ROUTES)
+def test_protected_route_without_token_returns_401(client, method, url):
+    response = client.request(method, url, json={"name": "Maria Souza"})
+
+    assert response.status_code == 401
+    assert response.json() == NOT_AUTHENTICATED
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+# --- a user manages their own account ---
+
+
+def test_user_gets_own_account(client, maria):
+    response = client.get(f"/v1/users/{maria.id}", headers=maria.headers)
+
+    assert response.status_code == 200
+    assert response.json() == maria.body
+
+
+def test_update_user_changes_only_the_given_fields(client, maria):
+    url = f"/v1/users/{maria.id}"
+
+    response = client.patch(url, json={"name": "  Maria Souza  "}, headers=maria.headers)
+
+    assert response.status_code == 200
+    assert response.json() == {**maria.body, "name": "Maria Souza"}
+    assert client.get(url, headers=maria.headers).json()["name"] == "Maria Souza"
+
+
+def test_update_user_password_stores_new_hash(client, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}", json={"password": "nova-senha-forte"}, headers=maria.headers
+    )
+
+    assert response.status_code == 200
+    assert "password_hash" not in response.json()
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        (password_hash,) = conn.execute(
+            "SELECT password_hash FROM users WHERE id = %s", (maria.id,)
+        ).fetchone()
+    assert PasswordHasher().verify(password_hash, "nova-senha-forte")
+
+
+def test_update_user_to_taken_email_returns_409(client, maria, joao):
+    response = client.patch(
+        f"/v1/users/{joao.id}", json={"email": "MARIA@example.com"}, headers=joao.headers
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "E-mail já cadastrado"}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"name": None},
+        {"name": "   "},
+        {"email": "maria.example.com"},
+        {"password": "curta"},
+    ],
+)
+def test_update_user_with_invalid_payload_returns_422(client, maria, payload):
+    response = client.patch(f"/v1/users/{maria.id}", json=payload, headers=maria.headers)
+
+    assert response.status_code == 422
+
+
+def test_delete_user_returns_204_and_removes_user(client, maria, admin):
+    response = client.delete(f"/v1/users/{maria.id}", headers=maria.headers)
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert client.get(f"/v1/users/{maria.id}", headers=admin.headers).status_code == 404
+
+
+def test_deleted_user_email_can_be_used_again(client, maria):
+    client.delete(f"/v1/users/{maria.id}", headers=maria.headers)
+
     response = client.post("/v1/users", json=MARIA)
 
-    assert response.json()["role"] == "usuario"
+    assert response.status_code == 201
 
 
-def test_cannot_register_as_admin(client):
-    response = client.post("/v1/users", json={**MARIA, "role": "admin"})
+# --- but not anyone else's ---
 
-    assert response.json()["role"] == "usuario"
+
+@pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
+def test_user_cannot_touch_another_account(client, maria, joao, method):
+    response = client.request(
+        method, f"/v1/users/{joao.id}", json={"name": "Invasora"}, headers=maria.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+    assert client.get(f"/v1/users/{joao.id}", headers=joao.headers).json() == joao.body
+
+
+def test_user_gets_403_not_404_for_an_unknown_account(client, maria):
+    # the same answer for any id but your own, so nobody can probe which ids exist
+    response = client.get("/v1/users/999", headers=maria.headers)
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+@pytest.mark.parametrize("role", [Role.USUARIO, Role.ATENDENTE])
+def test_only_admin_lists_users(client, signup, role):
+    account = signup(MARIA, role)
+
+    response = client.get("/v1/users", headers=account.headers)
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+# --- an admin manages every account ---
+
+
+def test_admin_lists_users_in_creation_order(client, admin, signup):
+    others = [signup(user) for user in (MARIA, JOAO, ANA)]
+
+    response = client.get("/v1/users", headers=admin.headers)
+
+    assert response.status_code == 200
+    assert response.json() == [admin.body] + [account.body for account in others]
+
+
+def test_list_users_is_paginated(client, admin, signup):
+    for user in (MARIA, JOAO, ANA):
+        signup(user)
+
+    response = client.get("/v1/users", params={"limit": 1, "offset": 2}, headers=admin.headers)
+
+    assert response.status_code == 200
+    assert [user["email"] for user in response.json()] == ["joao@example.com"]
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}])
+def test_list_users_with_invalid_pagination_returns_422(client, admin, params):
+    response = client.get("/v1/users", params=params, headers=admin.headers)
+
+    assert response.status_code == 422
+
+
+def test_admin_gets_another_account(client, admin, maria):
+    response = client.get(f"/v1/users/{maria.id}", headers=admin.headers)
+
+    assert response.status_code == 200
+    assert response.json() == maria.body
+
+
+def test_admin_updates_another_account(client, admin, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}", json={"name": "Maria Souza"}, headers=admin.headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {**maria.body, "name": "Maria Souza"}
+
+
+def test_admin_deletes_another_account(client, admin, maria):
+    response = client.delete(f"/v1/users/{maria.id}", headers=admin.headers)
+
+    assert response.status_code == 204
+    assert client.get(f"/v1/users/{maria.id}", headers=admin.headers).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("method", "payload"), [("GET", None), ("PATCH", {"name": "Maria Souza"}), ("DELETE", None)]
+)
+def test_unknown_user_returns_404_to_admin(client, admin, method, payload):
+    response = client.request(method, "/v1/users/999", json=payload, headers=admin.headers)
+
+    assert response.status_code == 404
+    assert response.json() == USER_NOT_FOUND
+
+
+# --- only an admin changes roles (scope §11: the admin manages the attendants) ---
+
+
+def test_admin_changes_role_of_another_user(client, admin, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "atendente"}, headers=admin.headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {**maria.body, "role": "atendente"}
+    # the token only carries the id, so the new role counts from the next request on
+    assert client.get("/v1/auth/me", headers=maria.headers).json()["role"] == "atendente"
+
+
+@pytest.mark.parametrize("role", [Role.USUARIO, Role.ATENDENTE])
+def test_only_admin_changes_roles(client, signup, joao, role):
+    account = signup(MARIA, role)
+
+    response = client.patch(
+        f"/v1/users/{joao.id}/role", json={"role": "admin"}, headers=account.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+    assert client.get(f"/v1/users/{joao.id}", headers=joao.headers).json()["role"] == "usuario"
+
+
+def test_user_cannot_promote_themselves(client, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "admin"}, headers=maria.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+def test_admin_cannot_change_own_role(client, admin):
+    response = client.patch(
+        f"/v1/users/{admin.id}/role", json={"role": "usuario"}, headers=admin.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+def test_change_to_unknown_role_returns_422(client, admin, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "dono"}, headers=admin.headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_change_role_of_unknown_user_returns_404(client, admin):
+    response = client.patch("/v1/users/999/role", json={"role": "atendente"}, headers=admin.headers)
+
+    assert response.status_code == 404
+    assert response.json() == USER_NOT_FOUND

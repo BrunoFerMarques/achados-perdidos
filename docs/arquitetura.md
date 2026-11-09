@@ -32,7 +32,7 @@ flowchart TD
 | `models/`         | Tabelas mapeadas pelo SQLAlchemy. São as entidades do sistema.                   | `domain/`                             |
 | `repositories/`   | Consultas ao banco e o Unit of Work, que controla a transação.                   | `models/`, `domain/`                  |
 | `services/`       | Casos de uso: buscam dados, aplicam regras, salvam. Não conhecem HTTP.           | `repositories/`, `models/`, `domain/` |
-| `schemas/`        | Formato de entrada e saída da API (validação e o que o cliente vê).              | Nada do projeto                       |
+| `schemas/`        | Formato de entrada e saída da API (validação e o que o cliente vê).              | Só os enums de `domain/` (ex.: `Role`) |
 | `routers/`        | Recebem a requisição, chamam um service, devolvem a resposta.                    | `dependencies.py`, `schemas/`         |
 | `dependencies.py` | Composition root: decide qual objeto cada rota recebe.                           | Tudo                                  |
 | `api.py`          | Cria a aplicação, registra os routers e traduz erros de domínio em HTTP.         | Tudo                                  |
@@ -43,13 +43,15 @@ flowchart TD
 
 ## 2. Caminho de uma requisição
 
-Exemplo: `PATCH /v1/users/7` com um e-mail que outra pessoa já usa.
+Exemplo: o usuário 7, logado, faz `PATCH /v1/users/7` com um e-mail que outra pessoa já usa.
 
-1. O **router** (`routers/users.py`) recebe o corpo já validado pelo **schema** `UserUpdate` e chama `users.update(...)`.
-2. O `UserService` chegou pronto via **injeção de dependência** (`dependencies.py`), com o Unit of Work e o hasher de senha.
-3. O **service** busca o usuário pelo **repository** (`uow.users.get`), altera os campos e chama `uow.commit()`.
-4. O banco recusa por causa do índice único `users_email_key`. O **Unit of Work** traduz esse erro de banco para o erro de domínio `EmailAlreadyExists`.
-5. O handler registrado em `api.py` transforma `ConflictError` em **HTTP 409** com a mensagem do erro.
+1. Antes da rota rodar, `CurrentUserDep` (`dependencies.py`) valida o token Bearer e carrega o usuário logado. Sem token válido, a resposta é **401** e a rota nem roda.
+2. O **router** (`routers/users.py`) recebe o corpo já validado pelo **schema** `UserUpdate` e chama `users.update(current_user, 7, ...)`.
+3. O `UserService` chegou pronto via **injeção de dependência** (`dependencies.py`), com o Unit of Work e o hasher de senha.
+4. O **service** pergunta à **Policy** (`can_manage_user` em `domain/permissions.py`) se quem está logado pode mexer na conta 7: só a própria conta ou um admin. Se não puder, `PermissionDenied` vira **403**. A checagem vem antes da busca, então quem não tem permissão nem descobre se a conta 7 existe.
+5. O service busca o usuário pelo **repository** (`uow.users.get`), altera os campos e chama `uow.commit()`.
+6. O banco recusa por causa do índice único `users_email_key`. O **Unit of Work** traduz esse erro de banco para o erro de domínio `EmailAlreadyExists`.
+7. O handler registrado em `api.py` transforma `ConflictError` em **HTTP 409** com a mensagem do erro.
 
 O service não sabe que existe HTTP, e o router não sabe que existe banco.
 
@@ -69,14 +71,15 @@ O service não sabe que existe HTTP, e o router não sabe que existe banco.
 | Exceções de domínio            | `domain/errors.py`, `api.py`                             | O service lança `UserNotFound`; só o `api.py` sabe que isso vira 404.                                       |
 | Tradução de erros na borda     | `CONFLICTS` em `repositories/unit_of_work.py`            | Violação de constraint conhecida vira erro de domínio; qualquer outra continua sendo bug e gera 500.        |
 | Autenticação por token (JWT)   | `services/auth.py`, `services/token.py`, `CurrentUserDep` em `dependencies.py` | `POST /v1/auth/login` devolve um token Bearer que expira em 1 hora. A rota que exige login recebe `user: CurrentUserDep`; o token é validado antes da rota rodar e o service nunca lê cabeçalho HTTP. |
+| Policy (permissões)            | `domain/permissions.py`, chamada pelos services          | Cada regra é uma função pura que responde sim ou não (`can_manage_user`, `can_change_role`...); `ensure(...)` transforma o "não" em `PermissionDenied` (403). O service recebe o usuário logado (`actor`) e checa antes de agir. Nada de `if role == ...` nas rotas. |
 
-Hierarquia de erros: `DomainError` → `NotFoundError` (404), `ConflictError` (409) e `UnauthorizedError` (401, com o cabeçalho `WWW-Authenticate: Bearer`). Um erro novo herda de uma delas e já sai com o status certo, sem `try/except` no router.
+Hierarquia de erros: `DomainError` → `NotFoundError` (404), `ConflictError` (409), `UnauthorizedError` (401, com o cabeçalho `WWW-Authenticate: Bearer`) e `ForbiddenError` (403). 401 quer dizer "não sei quem você é"; 403, "sei, mas você não pode". Um erro novo herda de uma delas e já sai com o status certo, sem `try/except` no router.
 
 ---
 
 ## 4. Padrões planejados
 
-> **Ainda não implementados.** O código atual só tem o cadastro de usuários e o login. Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
+> **Ainda não implementados.** O código atual tem o cadastro de usuários, o login, as permissões sobre contas e as listas fixas (categorias, locais e cores). Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
 
 | Regra do escopo                                                                | Padrão                                     | Como fica no código                                                                                                                                                       |
 | ------------------------------------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -86,7 +89,7 @@ Hierarquia de erros: `DomainError` → `NotFoundError` (404), `ConflictError` (4
 | Prazos (RN03, RN04, RN33, RN44)                                                | Relógio injetável                          | `Clock` em `domain/`, com `SystemClock` em produção e um relógio falso nos testes. Nenhuma regra chama `datetime.now()` direto ([§15](diagrama.md#15-estratégia-de-testes)). |
 | Notificação de match (RN30, RN31)                                              | Observer / eventos de domínio              | O service do item publica "item ficou disponível"; um handler calcula o match e notifica. Registrar item não depende de notificação. RN31 vira constraint única no par relato × item. |
 | Histórico de custódia (RN42, RN43)                                             | Registro só de inserção                    | O repository do histórico só tem `add`, sem atualizar nem apagar.                                                                                                          |
-| Permissões ([§11](diagrama.md#11-permissões), RN41)                            | Policy                                     | Funções em `domain/permissions.py` que respondem "este usuário pode operar este item?", recebendo o usuário de `CurrentUserDep`. Negação lança `PermissionDenied` (403). Nada de `if papel == ...` espalhado nas rotas. |
+| Permissão por ponto de coleta (RN41)                                           | Policy (já em uso, ver §3)                 | Novas funções em `domain/permissions.py`, como `can_operate_item(actor, item_point_id, actor_point_ids)`: o atendente só opera itens dos seus pontos. Mesmo formato das regras de contas. |
 | Parâmetros do sistema ([§12](diagrama.md#12-parâmetros-do-sistema))            | Objeto de configuração                     | Um objeto com os prazos e limites, injetado nos services pelo `dependencies.py`. Os testes passam valores próprios.                                                        |
 | Listagem pública com filtros                                                   | Método de consulta no repository           | Filtros opcionais montados no repository. O service só repassa o que veio da requisição.                                                                                   |
 | Privacidade ([§10](diagrama.md#10-privacidade))                                | Um DTO por público                         | Schemas diferentes para público, achador, reivindicante e atendente. O que não deve aparecer simplesmente não existe no schema daquele público.                            |
@@ -104,7 +107,7 @@ Exemplo: cadastro de pontos de coleta.
 5. **`services/`**: `CollectionPointService(uow, ...)`, com um método por caso de uso e um `commit()` no fim de cada um que altera dados.
 6. **`dependencies.py`**: `get_collection_point_service` e o alias `CollectionPointServiceDep`.
 7. **`schemas/`**: DTOs de entrada e saída.
-8. **`routers/`**: as rotas e o `include_router` em `api.py`. Rota que exige login declara `user: CurrentUserDep`.
+8. **`routers/`**: as rotas e o `include_router` em `api.py`. Rota que exige login declara `current_user: CurrentUserDep` e o repassa ao service, que checa a permissão com uma regra de `domain/permissions.py`.
 9. **Testes**: em `tests/unit/` o que estiver em `domain/` (sem banco), em `tests/integration/` o repository e as constraints, e em `tests/api/` o fluxo pelas rotas. Cite a regra no nome do teste ou num comentário (`# RN13`) para manter a rastreabilidade.
 
 ---
@@ -114,6 +117,9 @@ Exemplo: cadastro de pontos de coleta.
 - **O model do SQLAlchemy é a entidade.** Não há uma camada separada de entidades "puras" espelhando os models, o que evita duplicação. O que precisa ser puro (cálculos, máquinas de estado) fica em `domain/` e trabalha com valores simples.
 - **Sem interfaces (`Protocol`) para os repositories, por enquanto.** Hoje existe uma implementação de cada. Quando algum teste precisar de um repository falso, extraia o `Protocol` nesse momento.
 - **Organização por camada, não por feature.** Com 8 a 10 entidades previstas, cada pasta fica com poucos arquivos e a regra de dependência continua visível na estrutura.
+- **A permissão é checada no service, não no router.** É regra de negócio: vale para qualquer porta de entrada (rota, script, tarefa agendada), e o router continua fino. As regras em si ficam em `domain/permissions.py` para serem testadas sem banco.
+- **`Actor` é um `Protocol` em `domain/permissions.py`.** As regras precisam só de `id` e `role`. O `Protocol` deixa o model `User` entrar direto sem `domain/` importar `models/`, e nos testes unitários basta um objeto simples com esses dois campos.
+- **Ninguém vira admin pela API.** O cadastro sempre dá o papel `usuario`, e só um admin muda papéis (`PATCH /v1/users/{id}/role`), nunca o próprio. O primeiro admin sai do `make_admin.py`, que exige acesso ao banco.
 - **O commit é do service, não da requisição.** A resposta só sai depois que os dados foram salvos, e um caso de uso que mexe em várias tabelas (aprovar reivindicação: item, reivindicação e histórico) salva tudo numa transação só.
 
 ### Referências

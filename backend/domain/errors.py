@@ -19,6 +19,10 @@ class UnauthorizedError(DomainError):
     """The client didn't prove who it is."""
 
 
+class ForbiddenError(DomainError):
+    """The client proved who it is, but may not do this."""
+
+
 class InvalidCredentials(UnauthorizedError):
     message = "E-mail ou senha inválidos"
 
@@ -29,6 +33,10 @@ class NotAuthenticated(UnauthorizedError):
 
 class InvalidToken(UnauthorizedError):
     message = "Token inválido ou expirado"
+
+
+class PermissionDenied(ForbiddenError):
+    message = "Sem permissão para esta operação"
 
 
 class UserNotFound(NotFoundError):

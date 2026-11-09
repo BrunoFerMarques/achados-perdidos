@@ -4,7 +4,13 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from db import SessionDep
-from domain.errors import ConflictError, DomainError, NotFoundError, UnauthorizedError
+from domain.errors import (
+    ConflictError,
+    DomainError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+)
 from routers import auth, categories, colors, locations, users
 
 load_dotenv()
@@ -31,6 +37,8 @@ app.add_exception_handler(NotFoundError, _error_response(404))
 app.add_exception_handler(ConflictError, _error_response(409))
 # the HTTP spec asks a 401 to say which scheme to authenticate with
 app.add_exception_handler(UnauthorizedError, _error_response(401, {"WWW-Authenticate": "Bearer"}))
+# logged in, but not allowed: 403, so the client knows logging in again won't help
+app.add_exception_handler(ForbiddenError, _error_response(403))
 
 
 @app.get("/")
