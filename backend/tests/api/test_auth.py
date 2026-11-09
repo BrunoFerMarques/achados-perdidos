@@ -96,7 +96,7 @@ def test_me_with_expired_token_returns_401(client, maria):
 
 def test_token_of_deleted_user_returns_401(client, maria):
     token = client.post("/v1/auth/login", json=MARIA_LOGIN).json()["access_token"]
-    client.delete(f"/v1/users/{maria['id']}")
+    client.delete(f"/v1/users/{maria['id']}", headers=bearer(token))
 
     response = client.get("/v1/auth/me", headers=bearer(token))
 
