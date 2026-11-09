@@ -13,6 +13,9 @@ from domain.errors import NotAuthenticated
 from models import User
 from repositories.unit_of_work import UnitOfWork
 from services.auth import AuthService
+from services.category import CategoryService
+from services.color import ColorService
+from services.location import LocationService
 from services.token import TokenService
 from services.user import UserService
 
@@ -35,6 +38,27 @@ def get_user_service(uow: UnitOfWorkDep) -> UserService:
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+
+def get_category_service(uow: UnitOfWorkDep) -> CategoryService:
+    return CategoryService(uow)
+
+
+CategoryServiceDep = Annotated[CategoryService, Depends(get_category_service)]
+
+
+def get_location_service(uow: UnitOfWorkDep) -> LocationService:
+    return LocationService(uow)
+
+
+LocationServiceDep = Annotated[LocationService, Depends(get_location_service)]
+
+
+def get_color_service(uow: UnitOfWorkDep) -> ColorService:
+    return ColorService(uow)
+
+
+ColorServiceDep = Annotated[ColorService, Depends(get_color_service)]
 
 
 def get_token_service() -> TokenService:
