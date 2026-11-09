@@ -107,6 +107,7 @@ PROTECTED_ROUTES = [
     ("GET", "/v1/users/1"),
     ("PATCH", "/v1/users/1"),
     ("DELETE", "/v1/users/1"),
+    ("PATCH", "/v1/users/1/role"),
 ]
 
 
@@ -283,6 +284,66 @@ def test_admin_deletes_another_account(client, admin, maria):
 )
 def test_unknown_user_returns_404_to_admin(client, admin, method, payload):
     response = client.request(method, "/v1/users/999", json=payload, headers=admin.headers)
+
+    assert response.status_code == 404
+    assert response.json() == USER_NOT_FOUND
+
+
+# --- only an admin changes roles (scope §11: the admin manages the attendants) ---
+
+
+def test_admin_changes_role_of_another_user(client, admin, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "atendente"}, headers=admin.headers
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {**maria.body, "role": "atendente"}
+    # the token only carries the id, so the new role counts from the next request on
+    assert client.get("/v1/auth/me", headers=maria.headers).json()["role"] == "atendente"
+
+
+@pytest.mark.parametrize("role", [Role.USUARIO, Role.ATENDENTE])
+def test_only_admin_changes_roles(client, signup, joao, role):
+    account = signup(MARIA, role)
+
+    response = client.patch(
+        f"/v1/users/{joao.id}/role", json={"role": "admin"}, headers=account.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+    assert client.get(f"/v1/users/{joao.id}", headers=joao.headers).json()["role"] == "usuario"
+
+
+def test_user_cannot_promote_themselves(client, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "admin"}, headers=maria.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+def test_admin_cannot_change_own_role(client, admin):
+    response = client.patch(
+        f"/v1/users/{admin.id}/role", json={"role": "usuario"}, headers=admin.headers
+    )
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+
+
+def test_change_to_unknown_role_returns_422(client, admin, maria):
+    response = client.patch(
+        f"/v1/users/{maria.id}/role", json={"role": "dono"}, headers=admin.headers
+    )
+
+    assert response.status_code == 422
+
+
+def test_change_role_of_unknown_user_returns_404(client, admin):
+    response = client.patch("/v1/users/999/role", json={"role": "atendente"}, headers=admin.headers)
 
     assert response.status_code == 404
     assert response.json() == USER_NOT_FOUND

@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from dependencies import CurrentUserDep, UserServiceDep
-from schemas.user import UserCreate, UserOut, UserUpdate
+from schemas.user import RoleUpdate, UserCreate, UserOut, UserUpdate
 
 # every route but registering takes CurrentUserDep: no valid token, 401 before the route runs;
 # what the logged-in user may do is decided by the service (403)
@@ -35,6 +35,14 @@ def update_user(
     user_id: int, payload: UserUpdate, current_user: CurrentUserDep, users: UserServiceDep
 ):
     return users.update(current_user, user_id, payload.name, payload.email, payload.password)
+
+
+# a route of its own, not a field of UserUpdate: other rules (admin only, never your own role)
+@router.patch("/{user_id}/role", response_model=UserOut)
+def change_user_role(
+    user_id: int, payload: RoleUpdate, current_user: CurrentUserDep, users: UserServiceDep
+):
+    return users.change_role(current_user, user_id, payload.role)
 
 
 @router.delete("/{user_id}", status_code=204)

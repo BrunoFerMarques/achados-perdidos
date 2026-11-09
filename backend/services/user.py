@@ -3,7 +3,8 @@ from collections.abc import Sequence
 from argon2 import PasswordHasher
 
 from domain.errors import UserNotFound
-from domain.permissions import can_list_users, can_manage_user, ensure
+from domain.permissions import can_change_role, can_list_users, can_manage_user, ensure
+from domain.roles import Role
 from models import User
 from repositories.unit_of_work import UnitOfWork
 
@@ -48,6 +49,13 @@ class UserService:
             user.email = email
         if password is not None:
             user.password_hash = self._password_hasher.hash(password)
+        self._uow.commit()
+        return user
+
+    def change_role(self, actor: User, user_id: int, role: Role) -> User:
+        ensure(can_change_role(actor, user_id))
+        user = self._find(user_id)
+        user.role = role
         self._uow.commit()
         return user
 

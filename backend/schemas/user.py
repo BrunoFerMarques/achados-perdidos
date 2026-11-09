@@ -3,6 +3,8 @@ from typing import Annotated, Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, StringConstraints, model_validator
 
+from domain.roles import Role
+
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Password = Annotated[str, StringConstraints(min_length=8, max_length=128)]
 
@@ -26,6 +28,11 @@ class UserUpdate(BaseModel):
         if any(getattr(self, field) is None for field in self.model_fields_set):
             raise ValueError("Os campos não podem ser nulos")
         return self
+
+
+class RoleUpdate(BaseModel):
+    # the domain enum is the single list of roles: anything else is a 422
+    role: Role
 
 
 class UserOut(BaseModel):
