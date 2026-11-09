@@ -300,6 +300,12 @@ A pontuação vai de 0 a 1. Com **0,60 ou mais**, o dono do relato é notificado
 | Registrar destinação                        | Não       | Não     | Não            | Sim   |
 | Gerenciar pontos, locais, categorias e atendentes | Não | Não     | Não            | Sim   |
 | Desbloquear usuário                         | Não       | Não     | Não            | Sim   |
+| Criar conta                                 | Sim       | —       | —              | —     |
+| Ver, editar e excluir a própria conta       | Não       | Sim     | Sim            | Sim   |
+| Listar, ver, editar e excluir outras contas | Não       | Não     | Não            | Sim   |
+| Alterar o papel de outra conta              | Não       | Não     | Não            | Sim   |
+
+Toda conta nova nasce com o papel Usuário. Ninguém altera o próprio papel, nem o admin; o primeiro admin é criado por um script com acesso ao banco.
 
 ---
 

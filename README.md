@@ -31,6 +31,16 @@ python migrate.py                # aplica as migrações pendentes no DATABASE_U
 uvicorn api:app --reload         # http://localhost:8000/docs
 ```
 
+### Primeiro admin
+
+O cadastro (`POST /v1/users`) sempre cria o papel `usuario`, e só um admin muda papéis. Para ter o primeiro admin, cadastre a conta pela API e promova-a pelo script, que usa o banco do `DATABASE_URL`:
+
+```bash
+python make_admin.py maria@example.com
+```
+
+Depois disso, esse admin promove outras contas com `PATCH /v1/users/{id}/role` (`{"role": "atendente"}`).
+
 ## Testes e lint
 
 ```bash
