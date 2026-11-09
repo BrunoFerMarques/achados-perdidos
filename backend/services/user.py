@@ -59,6 +59,16 @@ class UserService:
         self._uow.commit()
         return user
 
+    def promote_to_admin(self, email: str) -> User:
+        """Only for make_admin.py, which makes the first admin. There is no actor to check: whoever
+        runs the script already holds the database credentials, more than any role in the API."""
+        user = self._uow.users.get_by_email(email)
+        if user is None:
+            raise UserNotFound()
+        user.role = Role.ADMIN
+        self._uow.commit()
+        return user
+
     def delete(self, actor: User, user_id: int) -> None:
         ensure(can_manage_user(actor, user_id))
         self._uow.users.delete(self._find(user_id))
