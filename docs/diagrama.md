@@ -183,7 +183,7 @@ Uma reivindicação é considerada **ativa** enquanto está `PENDENTE` ou `APROV
 - **RN12**: O usuário pode ter no máximo **3 reivindicações ativas** ao mesmo tempo.
 - **RN13**: Uma reivindicação só pode ser aprovada se o item estiver `DISPONIVEL`, e cada item tem no máximo uma reivindicação aprovada por vez. A aprovação muda o item para `RESERVADO` e gera o código de retirada.
 - **RN14**: Quando o item é devolvido, as demais reivindicações `PENDENTE` desse item passam a `REJEITADA` com o motivo "item devolvido a outra pessoa". Essa rejeição **não** conta como tentativa falha.
-- **RN15**: Contam como tentativa falha a rejeição automática por nota e a rejeição pelo atendente. Cancelamento e expiração não contam. Com **3 tentativas falhas em 30 dias**, o usuário fica bloqueado de reivindicar por **7 dias**.
+- **RN15**: Contam como tentativa falha a rejeição automática por nota e a rejeição pelo atendente. Cancelamento e expiração não contam. Com **3 tentativas falhas em 30 dias**, o usuário fica bloqueado de reivindicar por **7 dias**, contados a partir da terceira falha. As falhas que já geraram um bloqueio não contam para o próximo.
 - **RN16**: O administrador pode desbloquear um usuário antes do fim do bloqueio.
 
 ---
