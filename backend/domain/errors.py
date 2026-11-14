@@ -45,3 +45,7 @@ class UserNotFound(NotFoundError):
 
 class EmailAlreadyExists(ConflictError):
     message = "E-mail já cadastrado"
+
+
+class InvalidTransition(ConflictError):
+    message = "Mudança de estado não permitida"
