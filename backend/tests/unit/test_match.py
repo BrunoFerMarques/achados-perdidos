@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 import pytest
+
 from domain.match import (
     MatchConfig,
     RejectReason,
@@ -122,14 +123,9 @@ def test_example_from_the_scope_scores_90_and_notifies():  # §8 example
 
 
 def test_score_is_the_sum_of_the_partial_scores():  # §8 sum
-    result = calculate_match(
-        Report(), Item(found_date=at(5), color_id=2, description="garrafa")
-    )
+    result = calculate_match(Report(), Item(found_date=at(5), color_id=2, description="garrafa"))
     parts = (
-        result.date_score
-        + result.location_score
-        + result.color_score
-        + result.description_score
+        result.date_score + result.location_score + result.color_score + result.description_score
     )
     assert result.score == parts
 

@@ -164,9 +164,7 @@ def calculate_match(
 
     # criteria: each one is scored on its own, the total is the sum
     date_points = score_date(days_apart, config)
-    location_points = (
-        config.weight_location if report.location_id == item.location_id else 0
-    )
+    location_points = config.weight_location if report.location_id == item.location_id else 0
     color_points = config.weight_color if report.color_id == item.color_id else 0
     description_points = score_description(
         report.description, item.description, config.weight_description
