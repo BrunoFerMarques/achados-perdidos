@@ -16,10 +16,11 @@ def client():
 
 @pytest.fixture(autouse=True)
 def empty_users(test_database):
-    # the API commits for real, so every test starts and ends with an empty users table
+    # the API commits for real, so every test starts and ends with empty tables;
+    # CASCADE also empties collection_point_attendants, which points at both
     def truncate():
         with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-            conn.execute("TRUNCATE users RESTART IDENTITY")
+            conn.execute("TRUNCATE users, collection_points RESTART IDENTITY CASCADE")
 
     truncate()
     yield
