@@ -14,6 +14,7 @@ from models import User
 from repositories.unit_of_work import UnitOfWork
 from services.auth import AuthService
 from services.category import CategoryService
+from services.collection_point import CollectionPointService
 from services.color import ColorService
 from services.location import LocationService
 from services.token import TokenService
@@ -59,6 +60,13 @@ def get_color_service(uow: UnitOfWorkDep) -> ColorService:
 
 
 ColorServiceDep = Annotated[ColorService, Depends(get_color_service)]
+
+
+def get_collection_point_service(uow: UnitOfWorkDep) -> CollectionPointService:
+    return CollectionPointService(uow)
+
+
+CollectionPointServiceDep = Annotated[CollectionPointService, Depends(get_collection_point_service)]
 
 
 def get_token_service() -> TokenService:

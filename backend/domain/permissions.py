@@ -34,3 +34,8 @@ def can_manage_user(actor: Actor, user_id: int) -> bool:
 def can_change_role(actor: Actor, user_id: int) -> bool:
     # not your own: an admin can't take away their own access by mistake
     return actor.role == Role.ADMIN and actor.id != user_id
+
+
+def can_manage_collection_points(actor: Actor) -> bool:
+    # RN40: only an admin registers collection points and links attendants
+    return actor.role == Role.ADMIN
