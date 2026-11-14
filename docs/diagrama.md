@@ -198,8 +198,8 @@ Quem registra o item cadastra perguntas cujas respostas não aparecem no anúnci
 
 ### Cálculo da nota
 
-1. **Normalização:** as respostas esperada e dada são convertidas para minúsculas, sem acentos e sem pontuação, e os espaços repetidos são colapsados.
-2. **Comparação:** a resposta está correta se for igual após a normalização. Para respostas com 5 ou mais caracteres, também é aceita uma diferença de até 1 caractere (distância de edição ≤ 1), para tolerar erros de digitação.
+1. **Normalização:** as respostas esperada e dada são convertidas para minúsculas e sem acentos, cada sinal de pontuação vira espaço (assim `1,5` e `1.5` ficam iguais) e os espaços repetidos são colapsados.
+2. **Comparação:** a resposta está correta se for igual após a normalização. Quando a resposta esperada tem 5 ou mais caracteres, também é aceita uma diferença de até 1 caractere (distância de edição ≤ 1), para tolerar erros de digitação.
 3. **Nota** = acertos ÷ total de perguntas.
 4. Nota **abaixo de 60%**: a reivindicação é rejeitada automaticamente. Nota **igual ou acima de 60%**: vai para análise do atendente.
 
