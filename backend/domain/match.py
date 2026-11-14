@@ -1,15 +1,16 @@
 """Match between a lost-item report and a found item (scope §8).
- Pure rules: no database, no framework. Scores are integers from 0 to 100,
+Pure rules: no database, no framework. Scores are integers from 0 to 100,
 so there is no float rounding to worry about when comparing with the cutoff.
-""" 
+"""
 
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Protocol
-from.verification import normalize
 
-# words that say nothing about the object; already without accents, as `normalize` returns
+from .verification import normalize
+
+# Words that say nothing about the object; already without accents, as `normalize` returns
 STOPWORDS = frozenset(
     {
         "a", "as", "o", "os", "um", "uma", "uns", "umas",
@@ -19,7 +20,8 @@ STOPWORDS = frozenset(
     }
 )
 
-# Read-only properties, so the SQLAlchemy model and a frozen dataclass in the 
+
+# Read-only properties, so the SQLAlchemy model and a frozen dataclass in the
 # tests both fit these protocols (same idea as `Actor` in permissions.py).
 class LostReportLike(Protocol):
     @property
@@ -51,9 +53,9 @@ class FoundItemLike(Protocol):
 @dataclass(frozen=True)
 class MatchConfig:
     min_score: int = 60
-    max_days_before: int = 1  # found up to this many days before the loss still passes
-    near_days_limit: int = 2  # found up to this many days after the loss: full date score
-    mid_days_limit: int = 7  # found up to this many days after the loss: reduced date score
+    max_days_before: int = 1  # found up to this many days before loss still passes
+    near_days_limit: int = 2  # found up to this many days after loss: full score
+    mid_days_limit: int = 7  # found up to this many days after loss: reduced score
     weight_date_near: int = 30
     weight_date_mid: int = 15
     weight_location: int = 30
@@ -71,7 +73,7 @@ class MatchConfig:
         )
 
 
-# output
+# Output
 class RejectReason(str, Enum):
     CATEGORY_MISMATCH = "category_mismatch"
     FOUND_TOO_EARLY = "found_too_early"
@@ -88,7 +90,7 @@ class MatchResult:
     rejected_reason: RejectReason | None = None
 
 
-# --- criteria ---
+# criteria
 def normalize_tokens(text: str) -> frozenset[str]:
     """Words of a description: no accents, no punctuation, no stopwords."""
     return frozenset(w for w in normalize(text).split() if w not in STOPWORDS)
@@ -107,7 +109,7 @@ def score_description(text_a: str, text_b: str, weight: int) -> int:
 
 
 def score_date(days_apart: int, config: MatchConfig) -> int:
-    """`days_apart` is found date minus lost date; the early-found filter runs before this."""
+    """`days_apart` is found date minus lost date; early-found filter runs before."""
     if days_apart <= config.near_days_limit:
         return config.weight_date_near
     if days_apart <= config.mid_days_limit:
@@ -135,7 +137,9 @@ def calculate_match(
 
     # criteria: each one is scored on its own, the total is the sum
     date_points = score_date(days_apart, config)
-    location_points = config.weight_location if report.location_id == item.location_id else 0
+    location_points = (
+        config.weight_location if report.location_id == item.location_id else 0
+    )
     color_points = config.weight_color if report.color_id == item.color_id else 0
     description_points = score_description(
         report.description, item.description, config.weight_description

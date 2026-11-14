@@ -1,9 +1,7 @@
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 import pytest
-
 from domain.match import (
     MatchConfig,
     RejectReason,
@@ -13,6 +11,7 @@ from domain.match import (
 )
 
 LOST_ON = date(2026, 3, 10)
+
 
 def at(days: int) -> date:
     """The date `days` after (or before, if negative) the loss."""
@@ -53,7 +52,7 @@ def test_found_two_days_before_the_loss_rejects_the_pair():  # §8 date filter
     assert result.score == 0
 
 
-def test_found_one_day_before_the_loss_passes_with_full_date_score():  # §8 date filter edge
+def test_found_one_day_before_the_loss_passes_with_full_date_score():  # §8 date edge
     result = calculate_match(Report(), Item(found_date=at(-1)))
     assert result.rejected_reason is None
     assert result.date_score == 30
@@ -64,7 +63,7 @@ def test_found_one_day_before_the_loss_passes_with_full_date_score():  # §8 dat
     ("days_apart", "expected"),
     [(-1, 30), (0, 30), (1, 30), (2, 30), (3, 15), (7, 15), (8, 0), (60, 0)],
 )
-def test_date_score_by_days_between_loss_and_find(days_apart, expected):  # §8 date score
+def test_date_score_by_days_between_loss_and_find(days_apart, expected):  # §8 date
     result = calculate_match(Report(), Item(found_date=at(days_apart)))
     assert result.date_score == expected
 
@@ -82,13 +81,18 @@ def test_same_color_scores_20_and_different_scores_0():  # §8 color
 
 # description
 def test_tokens_drop_accents_case_punctuation_and_stopwords():  # §8 description
-    assert normalize_tokens("Garrafa TÉRMICA, preta!") == {"garrafa", "termica", "preta"}
+    assert normalize_tokens("Garrafa TÉRMICA, preta!") == {
+        "garrafa",
+        "termica",
+        "preta",
+    }
     assert normalize_tokens("bolsa de couro com alça") == {"bolsa", "couro", "alca"}
 
 
 def test_description_score_for_the_example_in_the_scope():  # §8 example
     # {garrafa, preta} shared out of {garrafa, termica, preta, adesivo} = 0.5 * 20
-    assert score_description("garrafa térmica preta", "garrafa preta com adesivo", 20) == 10
+    score = score_description("garrafa térmica preta", "garrafa preta com adesivo", 20)
+    assert score == 10
 
 
 def test_identical_descriptions_score_the_full_weight():
@@ -108,7 +112,7 @@ def test_descriptions_with_only_common_words_score_zero_instead_of_failing():
     assert score_description("de com", "o a", 20) == 0
 
 
-# total and cutoff 
+# total and cutoff
 def test_example_from_the_scope_scores_90_and_notifies():  # §8 example
     report = Report(description="garrafa térmica preta")
     item = Item(found_date=at(1), description="garrafa preta com adesivo")
@@ -118,7 +122,9 @@ def test_example_from_the_scope_scores_90_and_notifies():  # §8 example
 
 
 def test_score_is_the_sum_of_the_partial_scores():  # §8 sum
-    result = calculate_match(Report(), Item(found_date=at(5), color_id=2, description="garrafa"))
+    result = calculate_match(
+        Report(), Item(found_date=at(5), color_id=2, description="garrafa")
+    )
     parts = (
         result.date_score
         + result.location_score
