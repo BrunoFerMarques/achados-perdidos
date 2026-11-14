@@ -5,7 +5,7 @@ so there is no float rounding to worry about when comparing with the cutoff.
 
 from dataclasses import dataclass
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol
 
 from .verification import normalize
@@ -13,10 +13,34 @@ from .verification import normalize
 # Words that say nothing about the object; already without accents, as `normalize` returns
 STOPWORDS = frozenset(
     {
-        "a", "as", "o", "os", "um", "uma", "uns", "umas",
-        "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas",
-        "com", "sem", "para", "por", "pra", "ao", "aos",
-        "e", "ou", "que",
+        "a",
+        "as",
+        "o",
+        "os",
+        "um",
+        "uma",
+        "uns",
+        "umas",
+        "de",
+        "do",
+        "da",
+        "dos",
+        "das",
+        "em",
+        "no",
+        "na",
+        "nos",
+        "nas",
+        "com",
+        "sem",
+        "para",
+        "por",
+        "pra",
+        "ao",
+        "aos",
+        "e",
+        "ou",
+        "que",
     }
 )
 
@@ -73,8 +97,11 @@ class MatchConfig:
         )
 
 
-# Output
-class RejectReason(str, Enum):
+DEFAULT_CONFIG = MatchConfig()
+
+
+# --- output ---
+class RejectReason(StrEnum):
     CATEGORY_MISMATCH = "category_mismatch"
     FOUND_TOO_EARLY = "found_too_early"
 
@@ -90,7 +117,7 @@ class MatchResult:
     rejected_reason: RejectReason | None = None
 
 
-# criteria
+# --- criteria ---
 def normalize_tokens(text: str) -> frozenset[str]:
     """Words of a description: no accents, no punctuation, no stopwords."""
     return frozenset(w for w in normalize(text).split() if w not in STOPWORDS)
@@ -117,7 +144,7 @@ def score_date(days_apart: int, config: MatchConfig) -> int:
     return 0
 
 
-# match 
+# --- match ---
 def _rejected(reason: RejectReason) -> MatchResult:
     return MatchResult(matched=False, score=0, rejected_reason=reason)
 
@@ -125,7 +152,7 @@ def _rejected(reason: RejectReason) -> MatchResult:
 def calculate_match(
     report: LostReportLike,
     item: FoundItemLike,
-    config: MatchConfig = MatchConfig(),  # frozen, so a shared default is safe
+    config: MatchConfig = DEFAULT_CONFIG,
 ) -> MatchResult:
     """Compatibility between a lost-item report and an available item (scope §8)."""
     # filters: a pair that fails any of them is never scored

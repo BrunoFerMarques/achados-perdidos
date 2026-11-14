@@ -37,7 +37,7 @@ class Item:
     found_date: date = LOST_ON
 
 
-# filters
+# --- filters ---
 def test_different_category_rejects_the_pair():  # §8 category filter
     result = calculate_match(Report(), Item(category_id=2))
     assert result.rejected_reason is RejectReason.CATEGORY_MISMATCH
@@ -58,7 +58,7 @@ def test_found_one_day_before_the_loss_passes_with_full_date_score():  # §8 dat
     assert result.date_score == 30
 
 
-# date score
+# --- date score ---
 @pytest.mark.parametrize(
     ("days_apart", "expected"),
     [(-1, 30), (0, 30), (1, 30), (2, 30), (3, 15), (7, 15), (8, 0), (60, 0)],
@@ -68,7 +68,7 @@ def test_date_score_by_days_between_loss_and_find(days_apart, expected):  # §8 
     assert result.date_score == expected
 
 
-# location and color
+# --- location and color ---
 def test_same_location_scores_30_and_different_scores_0():  # §8 location
     assert calculate_match(Report(), Item(location_id=1)).location_score == 30
     assert calculate_match(Report(), Item(location_id=2)).location_score == 0
@@ -79,7 +79,7 @@ def test_same_color_scores_20_and_different_scores_0():  # §8 color
     assert calculate_match(Report(), Item(color_id=2)).color_score == 0
 
 
-# description
+# --- description ---
 def test_tokens_drop_accents_case_punctuation_and_stopwords():  # §8 description
     assert normalize_tokens("Garrafa TÉRMICA, preta!") == {
         "garrafa",
@@ -112,7 +112,7 @@ def test_descriptions_with_only_common_words_score_zero_instead_of_failing():
     assert score_description("de com", "o a", 20) == 0
 
 
-# total and cutoff
+# --- total and cutoff ---
 def test_example_from_the_scope_scores_90_and_notifies():  # §8 example
     report = Report(description="garrafa térmica preta")
     item = Item(found_date=at(1), description="garrafa preta com adesivo")
