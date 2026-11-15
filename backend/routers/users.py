@@ -45,6 +45,12 @@ def change_user_role(
     return users.change_role(current_user, user_id, payload.role)
 
 
+# RN16: an action, not a field to edit; the block itself is worked out from the rejections
+@router.post("/{user_id}/unblock", status_code=204)
+def unblock_user(user_id: int, current_user: CurrentUserDep, users: UserServiceDep):
+    users.unblock(current_user, user_id)
+
+
 @router.delete("/{user_id}", status_code=204)
 def delete_user(user_id: int, current_user: CurrentUserDep, users: UserServiceDep):
     users.delete(current_user, user_id)
