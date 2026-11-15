@@ -69,3 +69,23 @@ class AttendantAlreadyLinked(ConflictError):
 
 class UserIsNotAttendant(ConflictError):
     message = "O usuário não é atendente"
+
+
+class InvalidPickupCode(NotFoundError):
+    message = "Código de retirada inválido"
+
+
+class PickupCodeAlreadyUsed(ConflictError):
+    message = "Código de retirada já usado"
+
+
+class PickupCodeExpired(ConflictError):
+    message = "Código de retirada vencido"
+
+
+class ItemNotAtThisPoint(ConflictError):
+    message = "O item não está neste ponto de coleta"
+
+
+class DocumentNotChecked(ConflictError):
+    message = "Confira o documento com foto antes de concluir a retirada"
