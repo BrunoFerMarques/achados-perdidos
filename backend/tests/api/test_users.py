@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import psycopg
 import pytest
@@ -108,6 +109,7 @@ PROTECTED_ROUTES = [
     ("PATCH", "/v1/users/1"),
     ("DELETE", "/v1/users/1"),
     ("PATCH", "/v1/users/1/role"),
+    ("POST", "/v1/users/1/unblock"),
 ]
 
 
@@ -344,6 +346,56 @@ def test_change_to_unknown_role_returns_422(client, admin, maria):
 
 def test_change_role_of_unknown_user_returns_404(client, admin):
     response = client.patch("/v1/users/999/role", json={"role": "atendente"}, headers=admin.headers)
+
+    assert response.status_code == 404
+    assert response.json() == USER_NOT_FOUND
+
+
+# --- only an admin unblocks a user (RN16) ---
+
+
+def unblocked_at(user_id: int) -> datetime | None:
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        (value,) = conn.execute(
+            "SELECT unblocked_at FROM users WHERE id = %s", (user_id,)
+        ).fetchone()
+    return value
+
+
+def test_new_user_was_never_unblocked(maria):
+    assert unblocked_at(maria.id) is None
+
+
+def test_admin_unblocks_a_user(client, admin, maria):
+    response = client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
+
+    assert response.status_code == 204
+    # RN16: the failed claims before this moment no longer count toward a block
+    assert unblocked_at(maria.id) is not None
+
+
+def test_unblocking_again_moves_the_date_forward(client, admin, maria):
+    client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
+    first = unblocked_at(maria.id)
+
+    client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
+
+    assert unblocked_at(maria.id) > first
+
+
+@pytest.mark.parametrize("role", [Role.USUARIO, Role.ATENDENTE])
+def test_only_admin_unblocks_users(client, signup, joao, role):
+    account = signup(MARIA, role)
+
+    response = client.post(f"/v1/users/{joao.id}/unblock", headers=account.headers)
+
+    assert response.status_code == 403
+    assert response.json() == PERMISSION_DENIED
+    assert unblocked_at(joao.id) is None
+
+
+def test_unblock_unknown_user_returns_404(client, admin):
+    response = client.post("/v1/users/999/unblock", headers=admin.headers)
 
     assert response.status_code == 404
     assert response.json() == USER_NOT_FOUND

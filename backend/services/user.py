@@ -1,9 +1,16 @@
 from collections.abc import Sequence
 
 from argon2 import PasswordHasher
+from sqlalchemy import func
 
 from domain.errors import UserNotFound
-from domain.permissions import can_change_role, can_list_users, can_manage_user, ensure
+from domain.permissions import (
+    can_change_role,
+    can_list_users,
+    can_manage_user,
+    can_unblock_user,
+    ensure,
+)
 from domain.roles import Role
 from models import User
 from repositories.unit_of_work import UnitOfWork
@@ -58,6 +65,15 @@ class UserService:
         user.role = role
         self._uow.commit()
         return user
+
+    def unblock(self, actor: User, user_id: int) -> None:
+        ensure(can_unblock_user(actor))
+        user = self._find(user_id)
+        # RN16: failed claims before this moment stop counting. If the user wasn't blocked, it
+        # still clears the failures that hadn't caused a block yet: the admin's call.
+        # The database clock, like created_at
+        user.unblocked_at = func.now()
+        self._uow.commit()
 
     def promote_to_admin(self, email: str) -> User:
         """Only for make_admin.py, which makes the first admin. There is no actor to check: whoever
