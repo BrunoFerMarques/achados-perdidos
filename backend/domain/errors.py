@@ -69,3 +69,7 @@ class AttendantAlreadyLinked(ConflictError):
 
 class UserIsNotAttendant(ConflictError):
     message = "O usuário não é atendente"
+
+
+class LostReportNotFound(NotFoundError):
+    message = "Relato de perda não encontrado"
