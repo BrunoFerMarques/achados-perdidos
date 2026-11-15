@@ -24,9 +24,7 @@ class Item(Base):
     category_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("categories.id"))
     location_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("locations.id"))
     color_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("colors.id"))
-    collection_point_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("collection_points.id")
-    )
+    collection_point_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("collection_points.id"))
     # SET NULL: deleting the account keeps the item, which is still on a shelf somewhere
     finder_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="SET NULL")
