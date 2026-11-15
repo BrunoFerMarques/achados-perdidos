@@ -9,6 +9,7 @@ from domain.permissions import (
     can_list_users,
     can_manage_collection_points,
     can_manage_user,
+    can_unblock_user,
     ensure,
 )
 from domain.roles import Role
@@ -60,6 +61,15 @@ def test_user_manages_own_account_and_admin_manages_any(role, target_id, allowed
 )
 def test_only_admin_changes_role_and_never_their_own(role, target_id, allowed):
     assert can_change_role(FakeActor(OWN_ID, role), target_id) is allowed
+
+
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [(Role.USUARIO, False), (Role.ATENDENTE, False), (Role.ADMIN, True)],
+)
+def test_only_admin_unblocks_users(role, allowed):
+    # RN16
+    assert can_unblock_user(FakeActor(OWN_ID, role)) is allowed
 
 
 @pytest.mark.parametrize(

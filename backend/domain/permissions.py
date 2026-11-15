@@ -36,6 +36,11 @@ def can_change_role(actor: Actor, user_id: int) -> bool:
     return actor.role == Role.ADMIN and actor.id != user_id
 
 
+def can_unblock_user(actor: Actor) -> bool:
+    # RN16: only an admin lifts a block before it ends
+    return actor.role == Role.ADMIN
+
+
 def can_manage_collection_points(actor: Actor) -> bool:
     # RN40: only an admin registers collection points and links attendants
     return actor.role == Role.ADMIN
