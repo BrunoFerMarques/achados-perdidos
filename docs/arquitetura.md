@@ -80,7 +80,7 @@ Hierarquia de erros: `DomainError` → `NotFoundError` (404), `ConflictError` (4
 
 ## 4. Padrões planejados
 
-> **Ainda não implementados.** O código atual tem o cadastro de usuários, o login, as permissões sobre contas, as listas fixas (categorias, locais e cores) e o cálculo da verificação de posse. Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
+> **Ainda não implementados.** O código atual tem o cadastro de usuários, o login, as permissões sobre contas, as listas fixas (categorias, locais e cores), os pontos de coleta com o vínculo dos atendentes (RN40) e o cálculo da verificação de posse. Esta seção define onde cada regra do [escopo](diagrama.md) vai morar quando for implementada.
 
 | Regra do escopo                                                                | Padrão                                     | Como fica no código                                                                                                                                                       |
 | ------------------------------------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

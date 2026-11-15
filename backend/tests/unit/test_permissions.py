@@ -4,7 +4,13 @@ from dataclasses import dataclass
 import pytest
 
 from domain.errors import PermissionDenied
-from domain.permissions import can_change_role, can_list_users, can_manage_user, ensure
+from domain.permissions import (
+    can_change_role,
+    can_list_users,
+    can_manage_collection_points,
+    can_manage_user,
+    ensure,
+)
 from domain.roles import Role
 
 OWN_ID = 1
@@ -54,6 +60,15 @@ def test_user_manages_own_account_and_admin_manages_any(role, target_id, allowed
 )
 def test_only_admin_changes_role_and_never_their_own(role, target_id, allowed):
     assert can_change_role(FakeActor(OWN_ID, role), target_id) is allowed
+
+
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [(Role.USUARIO, False), (Role.ATENDENTE, False), (Role.ADMIN, True)],
+)
+def test_only_admin_manages_collection_points(role, allowed):
+    # RN40
+    assert can_manage_collection_points(FakeActor(OWN_ID, role)) is allowed
 
 
 def test_ensure_raises_permission_denied_when_not_allowed():

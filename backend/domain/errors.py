@@ -49,3 +49,23 @@ class EmailAlreadyExists(ConflictError):
 
 class InvalidTransition(ConflictError):
     message = "Mudança de estado não permitida"
+
+
+class CollectionPointNotFound(NotFoundError):
+    message = "Ponto de coleta não encontrado"
+
+
+class AttendantLinkNotFound(NotFoundError):
+    message = "Atendente não vinculado a este ponto"
+
+
+class CollectionPointNameExists(ConflictError):
+    message = "Já existe um ponto de coleta com este nome"
+
+
+class AttendantAlreadyLinked(ConflictError):
+    message = "Atendente já vinculado a este ponto"
+
+
+class UserIsNotAttendant(ConflictError):
+    message = "O usuário não é atendente"
