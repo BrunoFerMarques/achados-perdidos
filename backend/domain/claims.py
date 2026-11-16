@@ -42,5 +42,9 @@ def initial_status(passed_verification: bool) -> ClaimStatus:
     return ClaimStatus.PENDING if passed_verification else ClaimStatus.REJECTED
 
 
-def is_active(status: ClaimStatus) -> bool:
-    return status in (ClaimStatus.PENDING, ClaimStatus.APPROVED)
+# scope §6: a claim still in play
+ACTIVE_STATUSES = frozenset({ClaimStatus.PENDING, ClaimStatus.APPROVED})
+# RN11: one active claim per item, and no second try after a rejection
+RECLAIM_BLOCKING_STATUSES = ACTIVE_STATUSES | {ClaimStatus.REJECTED}
+# RN12, scope §12
+MAX_ACTIVE_CLAIMS = 3
