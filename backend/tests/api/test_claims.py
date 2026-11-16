@@ -1,6 +1,6 @@
 # Claims (scope §6, §7) and the attendant's review (RN22, RN41)
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import psycopg
 import pytest
@@ -27,6 +27,16 @@ def set_item_status(item_id: int, status: str) -> None:
 def item_status(item_id: int) -> str:
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         return conn.execute("SELECT status FROM items WHERE id = %s", (item_id,)).fetchone()[0]
+
+
+def add_rejection(item_id: int, claimant_id: int, reason: str, at: datetime) -> None:
+    # RN14: returning an item (the pickup) has no route yet, so the test writes the rejection
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        conn.execute(
+            "INSERT INTO claims (item_id, claimant_id, status, score, rejection_reason, "
+            "rejected_at) VALUES (%s, %s, 'rejeitada', 1, %s, %s)",
+            (item_id, claimant_id, reason, at),
+        )
 
 
 @pytest.fixture
@@ -171,6 +181,23 @@ def test_requires_login(client, item):
     assert response.status_code == 401
 
 
+@pytest.mark.parametrize(
+    ("method", "url"),
+    [
+        ("GET", f"{URL}/me"),
+        ("GET", f"{URL}/pending"),
+        ("POST", f"{URL}/1/cancel"),
+        ("POST", f"{URL}/1/approve"),
+        ("POST", f"{URL}/1/reject"),
+    ],
+)
+def test_every_claim_route_requires_login(client, method, url):
+    response = client.request(method, url)
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Não autenticado"}
+
+
 @pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
 def test_only_users_claim(client, signup, item, role, clock):
     # scope §11
@@ -236,6 +263,13 @@ def test_blank_answer_is_allowed_and_counts_as_wrong(client, joao, item, clock):
     assert response.json()["status"] == "pendente"  # 2 of 3 is enough
 
 
+@pytest.mark.parametrize(("length", "code"), [(500, 201), (501, 422)])
+def test_answers_have_at_most_500_characters(client, joao, item, length, code, clock):
+    response = claim(client, joao, item, ["azul", "banda queen", "x" * length])
+
+    assert response.status_code == code
+
+
 # --- RN11 and RN12: how many claims ---
 
 
@@ -264,6 +298,16 @@ def test_rn11_claim_again_after_cancelling(client, joao, item, clock):
     assert response.status_code == 201
 
 
+def test_rn11_another_user_may_claim_an_item_already_claimed(client, signup, joao, item, clock):
+    # the limit is per user and item: whoever answers right still gets reviewed
+    claim(client, joao, item)
+
+    response = claim(client, signup(CARLOS), item)
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "pendente"
+
+
 def test_rn12_at_most_3_active_claims(client, joao, register, clock):
     for _ in range(3):
         assert claim(client, joao, register()).status_code == 201
@@ -277,6 +321,29 @@ def test_rn12_rejected_claims_dont_use_the_limit(client, joao, register, clock):
     claim(client, joao, register(), WRONG)
     for _ in range(3):
         assert claim(client, joao, register()).status_code == 201
+
+
+def test_rn12_approved_claims_use_the_limit(client, joao, attendant, register, clock):
+    approved = claim(client, joao, register()).json()
+    client.post(f"{URL}/{approved['id']}/approve", headers=attendant.headers)
+    claim(client, joao, register())
+    claim(client, joao, register())
+
+    response = claim(client, joao, register())
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Você atingiu o limite de reivindicações ativas"}
+
+
+def test_rn12_cancelling_a_claim_frees_a_slot(client, joao, register, clock):
+    first = claim(client, joao, register()).json()
+    claim(client, joao, register())
+    claim(client, joao, register())
+    client.post(f"{URL}/{first['id']}/cancel", headers=joao.headers)
+
+    response = claim(client, joao, register())
+
+    assert response.status_code == 201
 
 
 # --- RN15 and RN16: blocking after failed claims ---
@@ -336,6 +403,34 @@ def test_rn16_admin_unblock_lets_the_user_claim_again(client, admin, joao, regis
     assert claim(client, joao, register()).status_code == 201
 
 
+@pytest.mark.parametrize(
+    ("gap", "code"),
+    [(timedelta(days=30) - timedelta(seconds=1), 403), (timedelta(days=30), 201)],
+)
+def test_rn15_only_failures_within_30_days_block(client, joao, register, gap, code, clock):
+    # the failure times come from the injected clock; one 30 days old has left the window
+    claim(client, joao, register(), WRONG)
+    claim(client, joao, register(), WRONG)
+    clock.current += gap
+    claim(client, joao, register(), WRONG)
+
+    response = claim(client, joao, register())
+
+    assert response.status_code == code
+
+
+@pytest.mark.parametrize(("reason", "code"), [("item_devolvido", 201), ("nota_baixa", 403)])
+def test_rn14_rejection_because_the_item_went_to_someone_else_is_not_a_failure(
+    client, joao, register, reason, code, clock
+):
+    for _ in range(3):
+        add_rejection(register(), joao.id, reason, clock.now())
+
+    response = claim(client, joao, register())
+
+    assert response.status_code == code
+
+
 # --- my claims and cancelling ---
 
 
@@ -381,6 +476,36 @@ def test_deleting_the_account_gives_the_reserved_item_back(client, joao, attenda
 
     assert response.status_code == 204
     assert item_status(item) == "disponivel"
+
+
+def test_rn21_rn53_claimant_sees_only_the_status_the_point_and_the_code(
+    client, joao, attendant, item, point, clock
+):
+    pending = claim(client, joao, item).json()
+    client.post(f"{URL}/{pending['id']}/reject", headers=attendant.headers)
+
+    [mine] = client.get(f"{URL}/me", headers=joao.headers).json()
+
+    # no score, no reason, no answers and nothing about the finder
+    assert mine == {
+        "id": pending["id"],
+        "item_id": item,
+        "status": "rejeitada",
+        "collection_point_id": point,
+        "pickup_code": None,
+        "pickup_deadline": None,
+        "created_at": pending["created_at"],
+    }
+
+
+def test_cancelling_twice_is_409(client, joao, item, clock):
+    pending = claim(client, joao, item).json()
+    client.post(f"{URL}/{pending['id']}/cancel", headers=joao.headers)
+
+    response = client.post(f"{URL}/{pending['id']}/cancel", headers=joao.headers)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Mudança de estado não permitida"}
 
 
 def test_someone_elses_claim_looks_missing(client, signup, joao, item, clock):
@@ -436,6 +561,27 @@ def test_admin_sees_pending_claims_at_every_point(client, admin, joao, item, clo
     claim(client, joao, item)
 
     assert len(client.get(f"{URL}/pending", headers=admin.headers).json()) == 1
+
+
+def test_rn41_attendant_without_points_sees_no_pending_claims(client, signup, joao, item, clock):
+    claim(client, joao, item)
+    unlinked = signup(CARLOS, Role.ATENDENTE)
+
+    response = client.get(f"{URL}/pending", headers=unlinked.headers)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_admin_approves_a_claim_at_any_point(client, admin, joao, item, clock):
+    # scope §11: the admin reviews at every point without being linked to any
+    pending = claim(client, joao, item).json()
+
+    response = client.post(f"{URL}/{pending['id']}/approve", headers=admin.headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "aprovada"
+    assert item_status(item) == "reservado"
 
 
 def test_pending_list_leaves_out_rejected_claims(client, joao, attendant, item, clock):
@@ -496,6 +642,45 @@ def test_rn13_only_one_approved_claim_per_item(client, signup, joao, attendant, 
     response = client.post(f"{URL}/{second['id']}/approve", headers=attendant.headers)
 
     assert response.status_code == 409
+
+
+def test_rn13_once_the_approved_claim_is_cancelled_another_can_be_approved(
+    client, signup, joao, attendant, item, clock
+):
+    other = signup(CARLOS)
+    first = claim(client, joao, item).json()
+    second = claim(client, other, item).json()
+    client.post(f"{URL}/{first['id']}/approve", headers=attendant.headers)
+    client.post(f"{URL}/{first['id']}/cancel", headers=joao.headers)
+
+    response = client.post(f"{URL}/{second['id']}/approve", headers=attendant.headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "aprovada"
+    assert item_status(item) == "reservado"
+
+
+def test_approving_twice_is_409_and_keeps_the_pickup_code(client, joao, attendant, item, clock):
+    pending = claim(client, joao, item).json()
+    client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
+    [before] = client.get(f"{URL}/me", headers=joao.headers).json()
+
+    response = client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "O item não está disponível"}
+    [after] = client.get(f"{URL}/me", headers=joao.headers).json()
+    assert after["pickup_code"] == before["pickup_code"]
+
+
+def test_approved_claim_cannot_be_rejected(client, joao, attendant, item, clock):
+    pending = claim(client, joao, item).json()
+    client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
+
+    response = client.post(f"{URL}/{pending['id']}/reject", headers=attendant.headers)
+
+    assert response.status_code == 409
+    assert item_status(item) == "reservado"
 
 
 def test_rn13_item_in_transfer_cannot_be_approved_yet(client, joao, attendant, register, clock):
