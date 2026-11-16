@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import psycopg
 import pytest
@@ -366,21 +366,21 @@ def test_new_user_was_never_unblocked(maria):
     assert unblocked_at(maria.id) is None
 
 
-def test_admin_unblocks_a_user(client, admin, maria):
+def test_admin_unblocks_a_user(client, admin, maria, clock):
     response = client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
 
     assert response.status_code == 204
     # RN16: the failed claims before this moment no longer count toward a block
-    assert unblocked_at(maria.id) is not None
+    assert unblocked_at(maria.id) == clock.now()
 
 
-def test_unblocking_again_moves_the_date_forward(client, admin, maria):
+def test_unblocking_again_moves_the_date_forward(client, admin, maria, clock):
     client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
-    first = unblocked_at(maria.id)
+    clock.current += timedelta(days=3)
 
     client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
 
-    assert unblocked_at(maria.id) > first
+    assert unblocked_at(maria.id) == clock.now()
 
 
 @pytest.mark.parametrize("role", [Role.USUARIO, Role.ATENDENTE])
