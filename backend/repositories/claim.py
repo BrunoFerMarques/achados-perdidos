@@ -28,11 +28,15 @@ class ClaimRepository(Repository[Claim]):
         )
         return self._session.scalars(stmt).all()
 
-    def list_active_by_claimant(self, claimant_id: int) -> Sequence[Claim]:
-        stmt = select(Claim).where(
-            Claim.claimant_id == claimant_id, Claim.status.in_(ACTIVE_STATUSES)
+    def lock_active_by_claimant(self, claimant_id: int) -> Sequence[Claim]:
+        # locked like get_for_update: an approval racing an account deletion either lands first
+        # and is seen here, or waits and then finds the claim gone
+        stmt = (
+            select(Claim)
+            .where(Claim.claimant_id == claimant_id, Claim.status.in_(ACTIVE_STATUSES))
+            .with_for_update()
         )
-        return self._session.scalars(stmt).all()
+        return self._session.scalars(stmt.execution_options(populate_existing=True)).all()
 
     def count_active(self, claimant_id: int) -> int:
         # RN12
