@@ -15,6 +15,7 @@ from models import User
 from repositories.unit_of_work import UnitOfWork
 from services.auth import AuthService
 from services.category import CategoryService
+from services.claim import ClaimService
 from services.collection_point import CollectionPointService
 from services.color import ColorService
 from services.item import ItemService
@@ -85,6 +86,13 @@ def get_item_service(uow: UnitOfWorkDep) -> ItemService:
 
 
 ItemServiceDep = Annotated[ItemService, Depends(get_item_service)]
+
+
+def get_claim_service(uow: UnitOfWorkDep, clock: ClockDep) -> ClaimService:
+    return ClaimService(uow, clock)
+
+
+ClaimServiceDep = Annotated[ClaimService, Depends(get_claim_service)]
 
 
 def get_token_service() -> TokenService:
