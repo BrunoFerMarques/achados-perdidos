@@ -89,3 +89,15 @@ class ItemNotAtThisPoint(ConflictError):
 
 class DocumentNotChecked(ConflictError):
     message = "Confira o documento com foto antes de concluir a retirada"
+
+
+class CategoryNotFound(NotFoundError):
+    message = "Categoria não encontrada"
+
+
+class LocationNotFound(NotFoundError):
+    message = "Local não encontrado"
+
+
+class ColorNotFound(NotFoundError):
+    message = "Cor não encontrada"

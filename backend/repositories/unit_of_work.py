@@ -13,6 +13,7 @@ from repositories.collection_point import (
     CollectionPointRepository,
 )
 from repositories.color import ColorRepository
+from repositories.item import ItemRepository
 from repositories.location import LocationRepository
 from repositories.user import UserRepository
 
@@ -35,6 +36,7 @@ class UnitOfWork:
         self.locations = LocationRepository(session)
         self.colors = ColorRepository(session)
         self.collection_points = CollectionPointRepository(session)
+        self.items = ItemRepository(session)
         self.collection_point_attendants = CollectionPointAttendantRepository(session)
 
     def commit(self) -> None:
