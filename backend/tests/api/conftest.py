@@ -1,11 +1,13 @@
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
 from api import app
+from dependencies import get_clock
 from domain.roles import Role
 
 
@@ -55,3 +57,22 @@ def signup(client):
         return Account(body, {"Authorization": f"Bearer {token}"})
 
     return signup
+
+
+class FakeClock:
+    """A clock that only moves when the test moves it."""
+
+    def __init__(self, now: datetime):
+        self.current = now
+
+    def now(self) -> datetime:
+        return self.current
+
+
+@pytest.fixture
+def clock():
+    """Swap the API's clock for a FakeClock; move it with `clock.current += timedelta(...)`."""
+    fake = FakeClock(datetime(2026, 11, 16, 12, 0, tzinfo=UTC))
+    app.dependency_overrides[get_clock] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_clock)

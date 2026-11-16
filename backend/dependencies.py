@@ -9,6 +9,7 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from db import SessionDep
+from domain.clock import Clock, SystemClock
 from domain.errors import NotAuthenticated
 from models import User
 from repositories.unit_of_work import UnitOfWork
@@ -24,8 +25,17 @@ from services.user import UserService
 TOKEN_TTL = timedelta(hours=1)
 
 _password_hasher = PasswordHasher()
+_system_clock = SystemClock()
 # auto_error=False: a missing token raises NotAuthenticated, so every auth failure is the same 401
 _bearer = HTTPBearer(auto_error=False)
+
+
+def get_clock() -> Clock:
+    # the tests swap it for a fake clock with app.dependency_overrides
+    return _system_clock
+
+
+ClockDep = Annotated[Clock, Depends(get_clock)]
 
 
 def get_unit_of_work(session: SessionDep) -> UnitOfWork:
@@ -35,8 +45,8 @@ def get_unit_of_work(session: SessionDep) -> UnitOfWork:
 UnitOfWorkDep = Annotated[UnitOfWork, Depends(get_unit_of_work)]
 
 
-def get_user_service(uow: UnitOfWorkDep) -> UserService:
-    return UserService(uow, _password_hasher)
+def get_user_service(uow: UnitOfWorkDep, clock: ClockDep) -> UserService:
+    return UserService(uow, _password_hasher, clock)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
