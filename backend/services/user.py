@@ -1,8 +1,8 @@
 from collections.abc import Sequence
 
 from argon2 import PasswordHasher
-from sqlalchemy import func
 
+from domain.clock import Clock
 from domain.errors import UserNotFound
 from domain.permissions import (
     can_change_role,
@@ -20,9 +20,10 @@ class UserService:
     """Account use cases. `actor` is the logged-in user; the permission check comes first, so a
     user who may not see an account can't tell whether it exists."""
 
-    def __init__(self, uow: UnitOfWork, password_hasher: PasswordHasher):
+    def __init__(self, uow: UnitOfWork, password_hasher: PasswordHasher, clock: Clock):
         self._uow = uow
         self._password_hasher = password_hasher
+        self._clock = clock
 
     def create(self, name: str, email: str, password: str) -> User:
         # public: registering is how a visitor becomes a user
@@ -71,8 +72,8 @@ class UserService:
         user = self._find(user_id)
         # RN16: failed claims before this moment stop counting. If the user wasn't blocked, it
         # still clears the failures that hadn't caused a block yet: the admin's call.
-        # The database clock, like created_at
-        user.unblocked_at = func.now()
+        # The same clock that domain/blocking.py will be given as `now`, so both sides agree
+        user.unblocked_at = self._clock.now()
         self._uow.commit()
 
     def promote_to_admin(self, email: str) -> User:
