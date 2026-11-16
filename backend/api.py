@@ -8,10 +8,20 @@ from domain.errors import (
     ConflictError,
     DomainError,
     ForbiddenError,
+    InvalidRequestError,
     NotFoundError,
     UnauthorizedError,
 )
-from routers import auth, categories, collection_points, colors, items, locations, users
+from routers import (
+    auth,
+    categories,
+    claims,
+    collection_points,
+    colors,
+    items,
+    locations,
+    users,
+)
 
 load_dotenv()
 
@@ -23,6 +33,7 @@ app.include_router(locations.router)
 app.include_router(colors.router)
 app.include_router(collection_points.router)
 app.include_router(items.router)
+app.include_router(claims.router)
 
 
 def _error_response(status_code: int, headers: dict[str, str] | None = None):
@@ -41,6 +52,8 @@ app.add_exception_handler(ConflictError, _error_response(409))
 app.add_exception_handler(UnauthorizedError, _error_response(401, {"WWW-Authenticate": "Bearer"}))
 # logged in, but not allowed: 403, so the client knows logging in again won't help
 app.add_exception_handler(ForbiddenError, _error_response(403))
+# valid on its own, but not for the record it points at (e.g. 2 answers to an item with 3 questions)
+app.add_exception_handler(InvalidRequestError, _error_response(422))
 
 
 @app.get("/")
