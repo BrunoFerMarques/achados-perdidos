@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Identity, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from domain.items import ItemStatus
+from domain.items import ItemStatus, transition
 from models.base import Base
 
 
@@ -39,6 +39,10 @@ class Item(Base):
     questions: Mapped[list["ItemQuestion"]] = relationship(
         cascade="all, delete-orphan", order_by="ItemQuestion.position"
     )
+
+    def transition_to(self, target: ItemStatus) -> None:
+        # RN01: the only way to change the status; outside the diagram it raises InvalidTransition
+        self.status = transition(self.status, target)
 
 
 class ItemQuestion(Base):
