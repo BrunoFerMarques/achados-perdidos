@@ -10,6 +10,7 @@
 4. [Padrões planejados](#4-padrões-planejados)
 5. [Como adicionar uma feature](#5-como-adicionar-uma-feature)
 6. [Decisões](#6-decisões)
+7. [Frontend](#7-frontend)
 
 ---
 
@@ -127,6 +128,23 @@ Exemplo: cadastro de pontos de coleta.
 - **Reivindicação alheia é 404 para o usuário e 403 para o atendente.** Quem tenta cancelar a reivindicação de outra pessoa recebe 404, para um id não revelar quem reivindicou o quê. O atendente de outro ponto recebe 403 (RN41): ele é da equipe, e saber que a reivindicação existe em outro ponto não expõe nada.
 - **Excluir a conta cancela as reivindicações ativas.** As reivindicações são apagadas junto com a conta (`ON DELETE CASCADE`), mas antes a aprovada devolve o item para `disponivel`, senão ele ficaria reservado para ninguém.
 - **O commit é do service, não da requisição.** A resposta só sai depois que os dados foram salvos, e um caso de uso que mexe em várias tabelas (aprovar reivindicação: item, reivindicação e histórico) salva tudo numa transação só.
+
+---
+
+## 7. Frontend
+
+O frontend (`frontend/`) é uma SPA em React com TypeScript, criada com o Vite. Ele só conversa com a API por HTTP.
+
+| Onde                | O que tem                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/api/client.ts` | O único lugar que chama a API: junta `VITE_API_URL` com o caminho, envia o token no `Authorization: Bearer` e transforma erro em `ApiError` (o `detail` é uma lista no 422 e um texto nos demais). |
+| `src/api/types.ts`  | Os tipos que espelham os schemas da API (`User`, `Token`). Mudou um schema, atualize aqui.                                                                                                   |
+| `src/auth/`         | `AuthProvider` e `useAuth()`, com o usuário logado vindo do `/me`; `RequireAuth` protege as rotas.                                                                                           |
+| `src/pages/`        | Uma tela por rota, ligadas em `App.tsx`.                                                                                                                                                     |
+
+- **O token fica no `localStorage`.** Aguenta o F5 e não muda o backend. O risco (XSS) cai porque o React escapa o texto e o token vale 1 hora. Um 401 num pedido com token apaga o token e desloga.
+- **A tela guia, a API decide.** O `RequireAuth` só esconde telas; quem barra de verdade é o `CurrentUserDep` e as regras de `domain/permissions.py`.
+- **CORS no `api.py`.** As origens aceitas vêm de `CORS_ORIGINS`; em produção, ela precisa ter o endereço do site.
 
 ### Referências
 

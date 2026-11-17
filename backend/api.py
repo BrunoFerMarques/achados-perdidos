@@ -1,5 +1,8 @@
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -26,6 +29,14 @@ from routers import (
 load_dotenv()
 
 app = FastAPI(title="Achados e Perdidos API")
+# the browser only lets the frontend read our answers if its origin is on this list
+origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in origins.split(",")],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(categories.router)
