@@ -11,7 +11,7 @@ from domain.errors import (
     NotFoundError,
     UnauthorizedError,
 )
-from routers import auth, categories, collection_points, colors, locations, users
+from routers import auth, categories, collection_points, colors, locations, lost_reports, users
 
 load_dotenv()
 
@@ -22,6 +22,8 @@ app.include_router(categories.router)
 app.include_router(locations.router)
 app.include_router(colors.router)
 app.include_router(collection_points.router)
+app.include_router(collection_points.router)
+app.include_router(lost_reports.router)
 
 
 def _error_response(status_code: int, headers: dict[str, str] | None = None):
