@@ -9,6 +9,16 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+export function hasToken() {
+  return localStorage.getItem(TOKEN_KEY) !== null
+}
+
+let onSessionExpired = () => {}
+
+export function setOnSessionExpired(handler: () => void) {
+  onSessionExpired = handler
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -39,7 +49,10 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const res = await fetch(`${API_URL}${path}`, { ...options, headers })
 
   if (!res.ok) {
-    if (res.status === 401 && token) clearToken()
+    if (res.status === 401 && token) {
+      clearToken()
+      onSessionExpired()
+    }
     const body = await res.json().catch(() => null)
     throw new ApiError(res.status, errorMessage(body?.detail))
   }
