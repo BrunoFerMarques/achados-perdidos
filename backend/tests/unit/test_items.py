@@ -4,7 +4,7 @@ from itertools import product
 import pytest
 
 from domain.errors import InvalidTransition
-from domain.items import ItemStatus, transition
+from domain.items import ItemStatus, accepts_claims, transition
 from models import Item
 
 ALLOWED = [
@@ -49,3 +49,21 @@ def test_transition_to_outside_the_diagram_keeps_the_status():
         item.transition_to(ItemStatus.AVAILABLE)
 
     assert item.status == ItemStatus.RETURNED
+
+
+@pytest.mark.parametrize(
+    ("status", "accepts"),
+    [
+        (ItemStatus.REGISTERED, False),
+        (ItemStatus.AVAILABLE, True),
+        (ItemStatus.IN_TRANSFER, True),
+        (ItemStatus.RESERVED, False),
+        (ItemStatus.RETURNED, False),
+        (ItemStatus.EXPIRED, False),
+        (ItemStatus.DISPOSED, False),
+        (ItemStatus.CANCELLED, False),
+    ],
+)
+def test_only_items_on_a_shelf_or_on_their_way_accept_claims(status, accepts):
+    # the "Aceita nova reivindicação" column of the table in scope section 5
+    assert accepts_claims(status) is accepts

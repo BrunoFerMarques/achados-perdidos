@@ -88,7 +88,12 @@ class UserService:
 
     def delete(self, actor: User, user_id: int) -> None:
         ensure(can_manage_user(actor, user_id))
-        self._uow.users.delete(self._find(user_id))
+        user = self._find(user_id)
+        # the claims go with the account (ON DELETE CASCADE); an approved one first gives its item
+        # back, or the item would stay reserved for nobody
+        for claim in self._uow.claims.lock_active_by_claimant(user_id):
+            claim.cancel()
+        self._uow.users.delete(user)
         self._uow.commit()
 
     def _find(self, user_id: int) -> User:
