@@ -40,6 +40,14 @@ def transition(current: ItemStatus, target: ItemStatus) -> ItemStatus:
     return target
 
 
+# scope §5: the statuses that still take a new claim; the item is on a shelf or on its way to one
+CLAIMABLE_STATUSES = frozenset({ItemStatus.AVAILABLE, ItemStatus.IN_TRANSFER})
+
+
+def accepts_claims(status: ItemStatus) -> bool:
+    return status in CLAIMABLE_STATUSES
+
+
 # RN20, scope §12: every item has from 2 to 5 verification questions
 MIN_QUESTIONS = 2
 MAX_QUESTIONS = 5

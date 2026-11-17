@@ -3,7 +3,13 @@ from itertools import product
 
 import pytest
 
-from domain.claims import ClaimStatus, initial_status, is_active, transition
+from domain.claims import (
+    ACTIVE_STATUSES,
+    RECLAIM_BLOCKING_STATUSES,
+    ClaimStatus,
+    initial_status,
+    transition,
+)
 from domain.errors import InvalidTransition
 
 ALLOWED = [
@@ -49,4 +55,19 @@ def test_claim_below_the_minimum_score_starts_rejected():
 )
 def test_only_pending_and_approved_claims_are_active(status, active):
     # RN11 and RN12 limit active claims
-    assert is_active(status) is active
+    assert (status in ACTIVE_STATUSES) is active
+
+
+@pytest.mark.parametrize(
+    ("status", "blocks"),
+    [
+        (ClaimStatus.PENDING, True),
+        (ClaimStatus.APPROVED, True),
+        (ClaimStatus.REJECTED, True),
+        (ClaimStatus.CANCELLED, False),
+        (ClaimStatus.COMPLETED, False),
+        (ClaimStatus.EXPIRED, False),
+    ],
+)
+def test_rn11_active_or_rejected_claim_blocks_claiming_the_item_again(status, blocks):
+    assert (status in RECLAIM_BLOCKING_STATUSES) is blocks
