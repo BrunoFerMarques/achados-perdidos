@@ -1,3 +1,54 @@
+import { useState, type FormEvent } from 'react'
+import { Navigate, useNavigate } from 'react-router'
+import { ApiError } from '../api/client'
+import { useAuth } from '../auth/useAuth'
+
 export function LoginPage() {
-  return <h1>Entrar</h1>
+  const { user, login } = useAuth()
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
+
+  if (user) return <Navigate to="/" replace />
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setSending(true)
+    try {
+      await login(email, password)
+      navigate('/')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) setError('E-mail ou senha incorretos.')
+      else if (err instanceof ApiError) setError(err.message)
+      else setError('Não foi possível falar com a API. Tente de novo.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h1>Entrar</h1>
+      <label>
+        E-mail
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      </label>
+      <label>
+        Senha
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+      </label>
+      {error && <p role="alert">{error}</p>}
+      <button type="submit" disabled={sending}>
+        {sending ? 'Entrando…' : 'Entrar'}
+      </button>
+    </form>
+  )
 }
