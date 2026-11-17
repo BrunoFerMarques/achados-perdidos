@@ -12,13 +12,13 @@ class LostReport(Base):
     __table_args__ = (
         CheckConstraint("btrim(description) <> ''", name="description"),
         CheckConstraint(
-            "Status IN ('ativo', 'encerrado', 'expirado')",
+            "status IN ('ativo', 'encerrado', 'expirado')",
             name="status",
         ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"))
     color_id: Mapped[int] = mapped_column(ForeignKey("colors.id"))
