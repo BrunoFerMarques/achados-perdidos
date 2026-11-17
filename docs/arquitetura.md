@@ -10,6 +10,7 @@
 4. [Padrões planejados](#4-padrões-planejados)
 5. [Como adicionar uma feature](#5-como-adicionar-uma-feature)
 6. [Decisões](#6-decisões)
+7. [Frontend](#7-frontend)
 
 ---
 
@@ -124,6 +125,23 @@ Exemplo: cadastro de pontos de coleta.
 - **O bloqueio não é guardado, só o desbloqueio.** Estar bloqueado sai das rejeições, calculado por `domain/blocking.py` (RN15). O banco guarda apenas `users.unblocked_at`, a última vez que um admin desbloqueou o usuário (`POST /v1/users/{id}/unblock`, RN16); as falhas anteriores a essa data deixam de contar. Uma coluna `blocked` poderia ficar fora de sincronia com as rejeições.
 - **A resposta esperada fica em texto puro, mas nunca sai na API.** Hash não aceitaria erro de digitação (§7) e o atendente não veria a resposta ao revisar (RN22). A proteção é o schema: `QuestionOut` não tem o campo `answer` (RN23). O item nasce `registrado` pelo `server_default`, e o achador vem do token, nunca do corpo.
 - **O commit é do service, não da requisição.** A resposta só sai depois que os dados foram salvos, e um caso de uso que mexe em várias tabelas (aprovar reivindicação: item, reivindicação e histórico) salva tudo numa transação só.
+
+---
+
+## 7. Frontend
+
+O frontend (`frontend/`) é uma SPA em React com TypeScript, criada com o Vite. Ele só conversa com a API por HTTP.
+
+| Onde                | O que tem                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/api/client.ts` | O único lugar que chama a API: junta `VITE_API_URL` com o caminho, envia o token no `Authorization: Bearer` e transforma erro em `ApiError` (o `detail` é uma lista no 422 e um texto nos demais). |
+| `src/api/types.ts`  | Os tipos que espelham os schemas da API (`User`, `Token`). Mudou um schema, atualize aqui.                                                                                                   |
+| `src/auth/`         | `AuthProvider` e `useAuth()`, com o usuário logado vindo do `/me`; `RequireAuth` protege as rotas.                                                                                           |
+| `src/pages/`        | Uma tela por rota, ligadas em `App.tsx`.                                                                                                                                                     |
+
+- **O token fica no `localStorage`.** Aguenta o F5 e não muda o backend. O risco (XSS) cai porque o React escapa o texto e o token vale 1 hora. Um 401 num pedido com token apaga o token e desloga.
+- **A tela guia, a API decide.** O `RequireAuth` só esconde telas; quem barra de verdade é o `CurrentUserDep` e as regras de `domain/permissions.py`.
+- **CORS no `api.py`.** As origens aceitas vêm de `CORS_ORIGINS`; em produção, ela precisa ter o endereço do site.
 
 ### Referências
 
