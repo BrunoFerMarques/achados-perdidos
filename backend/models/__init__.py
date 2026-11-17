@@ -4,6 +4,7 @@ from models.category import Category
 from models.collection_point import CollectionPoint, CollectionPointAttendant
 from models.color import Color
 from models.location import Location
+from models.lost_report import LostReport
 from models.user import User
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "CollectionPointAttendant",
     "Color",
     "Location",
+    "LostReport",
     "User",
 ]
