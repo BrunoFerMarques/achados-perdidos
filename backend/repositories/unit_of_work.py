@@ -16,6 +16,7 @@ from repositories.collection_point import (
     CollectionPointRepository,
 )
 from repositories.color import ColorRepository
+from repositories.custody import CustodyRepository
 from repositories.item import ItemRepository
 from repositories.location import LocationRepository
 from repositories.user import UserRepository
@@ -45,6 +46,7 @@ class UnitOfWork:
         self.items = ItemRepository(session)
         self.collection_point_attendants = CollectionPointAttendantRepository(session)
         self.claims = ClaimRepository(session)
+        self.custody = CustodyRepository(session)
 
     def commit(self) -> None:
         try:
