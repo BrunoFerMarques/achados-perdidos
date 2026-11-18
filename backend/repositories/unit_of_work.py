@@ -48,6 +48,10 @@ class UnitOfWork:
         self.claims = ClaimRepository(session)
         self.custody = CustodyRepository(session)
 
+    def flush(self) -> None:
+        # sends the pending changes inside the open transaction, without committing
+        self._session.flush()
+
     def commit(self) -> None:
         try:
             self._session.commit()
