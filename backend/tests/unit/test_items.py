@@ -1,4 +1,5 @@
 # scope section 5 (docs/diagrama.md): item lifecycle, RN01
+from datetime import UTC, datetime
 from itertools import product
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from domain.errors import InvalidTransition
 from domain.items import ItemStatus, accepts_claims, transition
 from models import Item
+
+NOW = datetime(2026, 11, 16, 12, 0, tzinfo=UTC)
 
 ALLOWED = [
     (ItemStatus.REGISTERED, ItemStatus.AVAILABLE),  # received at the collection point
@@ -36,7 +39,7 @@ def test_transition_to_changes_the_status():
     # in memory, no database; plain text, the way the status comes from the database
     item = Item(status="registrado")
 
-    item.transition_to(ItemStatus.AVAILABLE)
+    item.transition_to(ItemStatus.AVAILABLE, by=1, at=NOW)
 
     assert item.status == ItemStatus.AVAILABLE
 
@@ -46,7 +49,7 @@ def test_transition_to_outside_the_diagram_keeps_the_status():
 
     # the example in scope section 15: a returned item never goes back
     with pytest.raises(InvalidTransition):
-        item.transition_to(ItemStatus.AVAILABLE)
+        item.transition_to(ItemStatus.AVAILABLE, by=1, at=NOW)
 
     assert item.status == ItemStatus.RETURNED
 

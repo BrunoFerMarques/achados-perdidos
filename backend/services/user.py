@@ -92,7 +92,7 @@ class UserService:
         # the claims go with the account (ON DELETE CASCADE); an approved one first gives its item
         # back, or the item would stay reserved for nobody
         for claim in self._uow.claims.lock_active_by_claimant(user_id):
-            claim.cancel()
+            claim.cancel(by=actor.id, at=self._clock.now())
         self._uow.users.delete(user)
         self._uow.commit()
 
