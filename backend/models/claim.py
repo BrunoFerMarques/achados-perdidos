@@ -92,22 +92,22 @@ class Claim(Base):
         # RN01: outside the diagram it raises InvalidTransition
         self.status = transition(self.status, target)
 
-    def approve(self, *, at: datetime, pickup_code: str) -> None:
+    def approve(self, *, by: int, at: datetime, pickup_code: str) -> None:
         self.transition_to(ClaimStatus.APPROVED)
         self.approved_at = at
         self.pickup_code = pickup_code
-        self.item.transition_to(ItemStatus.RESERVED)  # RN13
+        self.item.transition_to(ItemStatus.RESERVED, by=by, at=at)  # RN13
 
     def reject(self, reason: RejectionReason, *, at: datetime) -> None:
         self.transition_to(ClaimStatus.REJECTED)
         self._record_rejection(reason, at)
 
-    def cancel(self) -> None:
+    def cancel(self, *, by: int, at: datetime) -> None:
         was_approved = self.status == ClaimStatus.APPROVED
         self.transition_to(ClaimStatus.CANCELLED)
         if was_approved:
             # the item was waiting for this claimant; it goes back on the shelf
-            self.item.transition_to(ItemStatus.AVAILABLE)
+            self.item.transition_to(ItemStatus.AVAILABLE, by=by, at=at)
 
     def _record_rejection(self, reason: RejectionReason, at: datetime) -> None:
         # blocking.py counts the failures by rejected_at, so it is never left out

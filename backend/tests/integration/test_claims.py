@@ -246,12 +246,12 @@ def test_submit_needs_one_answer_per_question(item, joao):
         Claim.submit(item, joao.id, RIGHT[:2], 1.0, at=NOW)
 
 
-def test_rn13_approve_saves_the_code_and_time_and_reserves_the_item(db, uow, item, joao):
+def test_rn13_approve_saves_the_code_and_time_and_reserves_the_item(db, uow, item, joao, maria):
     claim = Claim.submit(item, joao.id, RIGHT, 1.0, at=NOW)
     uow.claims.add(claim)
     uow.commit()
 
-    claim.approve(at=NOW, pickup_code="AB12CD")
+    claim.approve(by=maria.id, at=NOW, pickup_code="AB12CD")
     uow.commit()
     saved = reload(db, claim)
 
@@ -280,14 +280,14 @@ def test_rn15_attendant_rejection_saves_a_failure_and_leaves_the_item(db, uow, i
     assert saved.item.status == ItemStatus.AVAILABLE
 
 
-def test_approving_a_rejected_claim_raises_and_leaves_the_item_on_the_shelf(uow, item, joao):
+def test_approving_a_rejected_claim_raises_and_leaves_the_item_on_the_shelf(uow, item, joao, maria):
     # RN01: rejected is final
     claim = Claim.submit(item, joao.id, WRONG, 0.0, at=NOW)
     uow.claims.add(claim)
     uow.commit()
 
     with pytest.raises(InvalidTransition):
-        claim.approve(at=NOW, pickup_code="AB12CD")
+        claim.approve(by=maria.id, at=NOW, pickup_code="AB12CD")
 
     assert claim.status == ClaimStatus.REJECTED
     assert item.status == ItemStatus.AVAILABLE
@@ -301,7 +301,7 @@ def test_completed_claim_cannot_be_cancelled(uow, new_item, joao):
     uow.commit()
 
     with pytest.raises(InvalidTransition):
-        claim.cancel()
+        claim.cancel(by=joao.id, at=NOW)
 
     assert claim.status == ClaimStatus.COMPLETED
     assert claim.item.status == ItemStatus.RETURNED
