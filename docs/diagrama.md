@@ -280,7 +280,7 @@ A pontuação vai de 0 a 1. Com **0,60 ou mais**, o dono do relato é notificado
 
 - **RN50**: A listagem pública mostra categoria, descrição, cor, local e data em que o item foi achado e ponto de coleta. Ela **nunca** mostra as perguntas de verificação, as respostas nem o nome ou contato do achador.
 - **RN51**: Ao registrar o item, o achador é orientado a não colocar detalhes identificadores na descrição pública. O atendente pode editar a descrição no recebimento.
-- **RN52**: Na categoria "Documentos", a descrição pública mostra só o tipo ("RG", "Carteira de estudante") e o nome aparece mascarado (`J*** S***`).
+- **RN52**: Na categoria "Documentos", a listagem pública não mostra a descrição: mostra só "Documento de identificação", e a busca por texto não procura nos documentos. O nome que está no documento entra como uma pergunta de verificação (RN20), nunca na descrição.
 - **RN53**: O achador acompanha apenas o estado do item e não vê quem o reivindicou. O reivindicante vê apenas o estado da sua reivindicação, o ponto de coleta e o código de retirada.
 
 ---
