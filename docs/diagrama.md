@@ -265,7 +265,7 @@ A pontuação vai de 0 a 1. Com **0,60 ou mais**, o dono do relato é notificado
 
 ### Histórico de custódia
 
-- **RN42**: Cada evento gera um registro com data e hora, responsável, ponto de coleta e tipo: `REGISTRO`, `RECEBIMENTO`, `TRANSFERENCIA_SAIDA`, `TRANSFERENCIA_CHEGADA`, `RESERVA`, `DEVOLUCAO`, `EXPIRACAO`, `DESTINACAO`, `CANCELAMENTO`.
+- **RN42**: Cada evento gera um registro com data e hora, responsável, ponto de coleta e tipo: `REGISTRO`, `RECEBIMENTO`, `TRANSFERENCIA_SAIDA`, `TRANSFERENCIA_CHEGADA`, `RESERVA`, `LIBERACAO`, `DEVOLUCAO`, `EXPIRACAO`, `DESTINACAO`, `CANCELAMENTO`. `LIBERACAO` é a volta de `RESERVADO` para `DISPONIVEL` (prazo de retirada vencido ou reivindicação aprovada cancelada); decisão provisória do grupo, a confirmar.
 - **RN43**: O histórico é imutável: os registros não podem ser editados nem apagados.
 
 ### Retirada

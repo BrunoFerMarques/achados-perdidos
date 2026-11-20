@@ -15,6 +15,7 @@ from domain.permissions import (
     can_review_claim,
     can_review_claims,
     can_unblock_user,
+    can_view_custody,
     ensure,
 )
 from domain.roles import Role
@@ -146,6 +147,14 @@ def test_review_needs_the_items_point_and_someone_elses_claim(
     actor = FakeActor(OWN_ID, role)
 
     assert can_review_claim(actor, claimant_id, POINT_ID, actor_point_ids) is allowed
+
+
+@pytest.mark.parametrize(
+    ("role", "allowed"),
+    [(Role.USUARIO, False), (Role.ATENDENTE, True), (Role.ADMIN, True)],
+)
+def test_rn53_only_staff_see_the_custody_history(role, allowed):
+    assert can_view_custody(FakeActor(OWN_ID, role)) is allowed
 
 
 def test_ensure_raises_permission_denied_when_not_allowed():
