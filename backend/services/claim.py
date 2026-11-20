@@ -74,7 +74,7 @@ class ClaimService:
         # someone else's claim looks like a missing one: an id doesn't tell who claimed what
         if claim is None or not can_cancel_claim(actor, claim.claimant_id):
             raise ClaimNotFound()
-        claim.cancel()
+        claim.cancel(by=actor.id, at=self._clock.now())
         self._uow.commit()
         return claim
 
@@ -88,7 +88,7 @@ class ClaimService:
         # RN13: the item must be on the shelf, and not reserved for another claim
         if claim.item.status != ItemStatus.AVAILABLE:
             raise ItemNotAvailable()
-        claim.approve(at=self._clock.now(), pickup_code=generate_code())  # RN44
+        claim.approve(by=actor.id, at=self._clock.now(), pickup_code=generate_code())  # RN44
         # one commit: the claim and the item change together, or neither does
         self._uow.commit()
         return claim

@@ -92,7 +92,10 @@ class UserService:
         # the claims go with the account (ON DELETE CASCADE); an approved one first gives its item
         # back, or the item would stay reserved for nobody
         for claim in self._uow.claims.lock_active_by_claimant(user_id):
-            claim.cancel()
+            claim.cancel(by=actor.id, at=self._clock.now())
+        # the liberacao lines go in before the account leaves: SQLAlchemy would delete the user
+        # first, and a line pointing at a user that no longer exists breaks the foreign key
+        self._uow.flush()
         self._uow.users.delete(user)
         self._uow.commit()
 
