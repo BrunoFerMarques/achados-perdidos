@@ -3,8 +3,10 @@ from datetime import date, datetime
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Identity, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from domain.custody import EVENTS
 from domain.items import ItemStatus, transition
 from models.base import Base
+from models.custody import CustodyRecord
 
 
 class Item(Base):
@@ -39,10 +41,27 @@ class Item(Base):
     questions: Mapped[list["ItemQuestion"]] = relationship(
         cascade="all, delete-orphan", order_by="ItemQuestion.position"
     )
+    # the custody history, oldest first; no delete-orphan: a line never leaves the book (RN43)
+    history: Mapped[list[CustodyRecord]] = relationship(order_by=CustodyRecord.id)
 
-    def transition_to(self, target: ItemStatus) -> None:
+    def transition_to(self, target: ItemStatus, *, by: int | None, at: datetime) -> None:
         # RN01: the only way to change the status; outside the diagram it raises InvalidTransition
-        self.status = transition(self.status, target)
+        current = self.status
+        self.status = transition(current, target)
+        # RN06: every status change writes one line, at the point where the item is now
+        self.history.append(
+            CustodyRecord(
+                event=EVENTS[(current, target)],
+                collection_point_id=self.collection_point_id,
+                actor_id=by,
+                at=at,
+            )
+        )
+
+    def receive(self, point_id: int, *, by: int, at: datetime) -> None:
+        # RN02: the item now belongs to the point where it was handed in, and the line says so
+        self.collection_point_id = point_id
+        self.transition_to(ItemStatus.AVAILABLE, by=by, at=at)
 
 
 class ItemQuestion(Base):
