@@ -76,6 +76,11 @@ def can_review_claim(
     )
 
 
+def can_view_custody(actor: Actor) -> bool:
+    # RN53: the finder and the claimant only follow the status; the history is for the staff
+    return actor.role in (Role.ATENDENTE, Role.ADMIN)
+
+
 def can_manage_collection_points(actor: Actor) -> bool:
     # RN40: only an admin registers collection points and links attendants
     return actor.role == Role.ADMIN

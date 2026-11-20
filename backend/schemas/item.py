@@ -27,6 +27,11 @@ class ItemCreate(BaseModel):
     ]
 
 
+class ReceiveIn(BaseModel):
+    # the counter where the object is handed in (RN02), not the point the finder chose
+    collection_point_id: int
+
+
 class QuestionOut(BaseModel):
     """No answer field: the expected answer never leaves the API (RN23)."""
 

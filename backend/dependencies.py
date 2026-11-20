@@ -81,8 +81,8 @@ def get_collection_point_service(uow: UnitOfWorkDep) -> CollectionPointService:
 CollectionPointServiceDep = Annotated[CollectionPointService, Depends(get_collection_point_service)]
 
 
-def get_item_service(uow: UnitOfWorkDep) -> ItemService:
-    return ItemService(uow)
+def get_item_service(uow: UnitOfWorkDep, clock: ClockDep) -> ItemService:
+    return ItemService(uow, clock)
 
 
 ItemServiceDep = Annotated[ItemService, Depends(get_item_service)]
