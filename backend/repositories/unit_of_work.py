@@ -6,13 +6,18 @@ from domain.errors import (
     CollectionPointNameExists,
     ConflictError,
     EmailAlreadyExists,
+    ItemAlreadyClaimed,
+    ItemNotAvailable,
 )
 from repositories.category import CategoryRepository
+from repositories.claim import ClaimRepository
 from repositories.collection_point import (
     CollectionPointAttendantRepository,
     CollectionPointRepository,
 )
 from repositories.color import ColorRepository
+from repositories.custody import CustodyRepository
+from repositories.item import ItemRepository
 from repositories.location import LocationRepository
 from repositories.lost_report import LostReportRepository
 from repositories.user import UserRepository
@@ -23,6 +28,9 @@ CONFLICTS: dict[str, type[ConflictError]] = {
     "collection_points_name_key": CollectionPointNameExists,
     # the same attendant linked twice to the same point
     "collection_point_attendants_pkey": AttendantAlreadyLinked,
+    # two requests at once that the service checks couldn't tell apart (RN11, RN13)
+    "claims_claimant_item_key": ItemAlreadyClaimed,
+    "claims_approved_item_key": ItemNotAvailable,
 }
 
 
@@ -36,8 +44,15 @@ class UnitOfWork:
         self.locations = LocationRepository(session)
         self.colors = ColorRepository(session)
         self.collection_points = CollectionPointRepository(session)
+        self.items = ItemRepository(session)
         self.collection_point_attendants = CollectionPointAttendantRepository(session)
         self.lost_reports = LostReportRepository(session)
+        self.claims = ClaimRepository(session)
+        self.custody = CustodyRepository(session)
+
+    def flush(self) -> None:
+        # sends the pending changes inside the open transaction, without committing
+        self._session.flush()
 
     def commit(self) -> None:
         try:

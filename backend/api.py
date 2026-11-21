@@ -1,5 +1,8 @@
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -8,22 +11,42 @@ from domain.errors import (
     ConflictError,
     DomainError,
     ForbiddenError,
+    InvalidRequestError,
     NotFoundError,
     UnauthorizedError,
 )
-from routers import auth, categories, collection_points, colors, locations, lost_reports, users
+from routers import (
+    auth,
+    categories,
+    claims,
+    collection_points,
+    colors,
+    items,
+    locations,
+    lost_reports,
+    users,
+)
 
 load_dotenv()
 
 app = FastAPI(title="Achados e Perdidos API")
+# the browser only lets the frontend read our answers if its origin is on this list
+origins = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in origins.split(",")],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(categories.router)
 app.include_router(locations.router)
 app.include_router(colors.router)
 app.include_router(collection_points.router)
-app.include_router(collection_points.router)
 app.include_router(lost_reports.router)
+app.include_router(items.router)
+app.include_router(claims.router)
 
 
 def _error_response(status_code: int, headers: dict[str, str] | None = None):
@@ -42,6 +65,8 @@ app.add_exception_handler(ConflictError, _error_response(409))
 app.add_exception_handler(UnauthorizedError, _error_response(401, {"WWW-Authenticate": "Bearer"}))
 # logged in, but not allowed: 403, so the client knows logging in again won't help
 app.add_exception_handler(ForbiddenError, _error_response(403))
+# valid on its own, but not for the record it points at (e.g. 2 answers to an item with 3 questions)
+app.add_exception_handler(InvalidRequestError, _error_response(422))
 
 
 @app.get("/")

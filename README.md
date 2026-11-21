@@ -41,6 +41,20 @@ python make_admin.py maria@example.com
 
 Depois disso, esse admin promove outras contas com `PATCH /v1/users/{id}/role` (`{"role": "atendente"}`).
 
+## Rodando o frontend
+
+Requisito: Node.js 24. A API precisa estar rodando.
+
+```bash
+cd frontend
+npm install
+npm run dev                      # http://localhost:5173
+npm run lint                     # oxlint
+npm run build                    # confere os tipos e gera o site em dist/
+```
+
+O endereço da API vem de `VITE_API_URL` (ver `frontend/.env.example`); sem `.env`, o padrão é `http://localhost:8000`. A API só responde ao navegador se a origem do site estiver em `CORS_ORIGINS`; o padrão é `http://localhost:5173`.
+
 ## Testes e lint
 
 ```bash
@@ -87,7 +101,7 @@ Nunca edite uma migração que já está no `master`: crie uma nova.
 
 ## CI/CD
 
-1. Todo PR roda o workflow `CI` no GitHub Actions: `ruff check`, `ruff format --check` e `pytest` contra um Postgres temporário.
+1. Todo PR roda o workflow `CI` no GitHub Actions, com dois jobs: `backend` (`ruff check`, `ruff format --check` e `pytest` contra um Postgres temporário) e `frontend` (`npm run lint` e `npm run build`).
 2. O `master` é protegido: o merge só acontece com PR aprovado e CI verde.
 3. Depois do merge, o CI roda de novo no `master`. Com ele verde, o Render faz o deploy.
 4. Ao subir, o Render roda `python migrate.py` no banco de produção e só então inicia a API. Se a migração falhar, o deploy falha e a versão anterior continua no ar.

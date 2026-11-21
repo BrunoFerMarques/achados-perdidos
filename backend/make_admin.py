@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from db import get_engine
-from dependencies import get_user_service
+from dependencies import get_clock, get_user_service
 from domain.errors import UserNotFound
 from repositories.unit_of_work import UnitOfWork
 
@@ -26,7 +26,7 @@ def main(args: list[str]) -> int:
     load_dotenv()
     with Session(get_engine(), expire_on_commit=False) as session:
         # built by the same composition root as the API, so the script runs the same use case
-        users = get_user_service(UnitOfWork(session))
+        users = get_user_service(UnitOfWork(session), get_clock())
         try:
             user = users.promote_to_admin(args[0])
         except UserNotFound as error:

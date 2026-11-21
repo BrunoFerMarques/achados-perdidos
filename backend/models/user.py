@@ -20,6 +20,9 @@ class User(Base):
     email: Mapped[str]
     password_hash: Mapped[str]
     role: Mapped[str] = mapped_column(server_default=Role.USUARIO)
+    # RN16: the last time an admin lifted a block; failed claims before it no longer count.
+    # The block itself isn't stored: domain/blocking.py works it out from the rejections
+    unblocked_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     # kept current by the set_updated_at trigger
     updated_at: Mapped[datetime] = mapped_column(
