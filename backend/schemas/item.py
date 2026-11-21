@@ -55,3 +55,15 @@ class ItemOut(BaseModel):
     status: str
     created_at: datetime
     questions: list[QuestionOut]
+
+
+class TransferIn(BaseModel):
+    # RN05: the destination; the origin is wherever the item is now
+    transfer_to_id: int
+
+
+class ItemTransferOut(ItemOut):
+    """For the staff following an item between points (RN05): where it is going, while on its
+    way. The finder's ItemOut doesn't carry it (RN53)."""
+
+    transfer_to_id: int | None

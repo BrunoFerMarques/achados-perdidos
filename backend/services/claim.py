@@ -106,6 +106,9 @@ class ClaimService:
         claim = self._uow.claims.get_for_update(claim_id)
         if claim is None:
             raise ClaimNotFound()
+        # the item too, claim first: a transfer or a receipt at the same time waits, and RN41 and
+        # RN13 read where the item is now, not where it was when the claim was loaded
+        self._uow.items.get_for_update(claim.item_id)
         # RN41: 403, not 404; attendants are staff, and knowing a claim exists elsewhere is harmless
         ensure(
             can_review_claim(

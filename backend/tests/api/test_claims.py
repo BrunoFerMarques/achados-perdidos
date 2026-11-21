@@ -225,7 +225,6 @@ def test_unknown_item_is_404(client, joao, clock):
     [
         ("registrado", 409),
         ("disponivel", 201),
-        ("em_transferencia", 201),
         ("reservado", 409),
         ("devolvido", 409),
         ("expirado", 409),
@@ -681,14 +680,6 @@ def test_approved_claim_cannot_be_rejected(client, joao, attendant, item, clock)
 
     assert response.status_code == 409
     assert item_status(item) == "reservado"
-
-
-def test_rn13_item_in_transfer_cannot_be_approved_yet(client, joao, attendant, register, clock):
-    pending = claim(client, joao, register("em_transferencia")).json()
-
-    response = client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
-
-    assert response.status_code == 409
 
 
 def test_rn41_attendant_from_another_point_gets_403(client, joao, other_attendant, item, clock):

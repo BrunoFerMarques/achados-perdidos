@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from db import get_engine
@@ -18,3 +19,17 @@ def db():
         with Session(conn, join_transaction_mode="create_savepoint") as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture
+def sent_sql(db):
+    """The SQL statements the session sends from here on."""
+    statements: list[str] = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    conn = db.connection()
+    event.listen(conn, "before_cursor_execute", record)
+    yield statements
+    event.remove(conn, "before_cursor_execute", record)
