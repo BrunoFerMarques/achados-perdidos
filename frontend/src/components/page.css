@@ -1,0 +1,106 @@
+.page {
+  text-align: left;
+  padding: 24px 32px 48px;
+}
+
+.page h1 {
+  font-size: 32px;
+  letter-spacing: -0.5px;
+  margin: 12px 0 24px;
+}
+
+.page h2 {
+  margin-top: 24px;
+}
+
+.page label {
+  display: block;
+  margin: 12px 0;
+}
+
+.page input[type='text'],
+.page input[type='number'],
+.page select {
+  display: block;
+  margin-top: 4px;
+  font: inherit;
+  padding: 6px 8px;
+  min-width: 260px;
+}
+
+.page label.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.page button {
+  font: inherit;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.page table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.page th,
+.page td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.code {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: 6px;
+  color: var(--text-h);
+}
+
+.muted {
+  font-size: 15px;
+}
+
+.page,
+.menu {
+  --error: #b03a2e;
+  --ok: #1e7b45;
+
+  @media (prefers-color-scheme: dark) {
+    /* at least 4.5:1 on the dark background (WCAG AA) */
+    --error: #f1948a;
+    --ok: #7dcea0;
+  }
+}
+
+.error {
+  color: var(--error);
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px 0;
+}
