@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from dependencies import CurrentUserDep, ItemServiceDep
 from schemas.custody import CustodyRecordOut
-from schemas.item import ItemCreate, ItemOut, ReceiveIn
+from schemas.item import ItemCreate, ItemOut, ItemTransferOut, ReceiveIn, TransferIn
 
 router = APIRouter(prefix="/v1/items", tags=["items"])
 
@@ -28,6 +28,26 @@ def receive_item(
 ):
     # an action route, not a PATCH on the status: receiving has rules of its own (RN02, RN41)
     return items.receive(current_user, item_id, payload.collection_point_id)
+
+
+@router.post("/{item_id}/transfer", response_model=ItemTransferOut)
+def transfer_item(
+    item_id: int, payload: TransferIn, current_user: CurrentUserDep, items: ItemServiceDep
+):
+    # RN05: the origin's attendant sends it; it stays in transfer until the destination confirms
+    return items.transfer(current_user, item_id, payload.transfer_to_id)
+
+
+@router.post("/{item_id}/arrive", response_model=ItemTransferOut)
+def arrive_item(item_id: int, current_user: CurrentUserDep, items: ItemServiceDep):
+    # RN05: the destination's attendant confirms it reached the shelf
+    return items.arrive(current_user, item_id)
+
+
+@router.get("/transfers", response_model=list[ItemTransferOut])
+def list_items_in_transfer(current_user: CurrentUserDep, items: ItemServiceDep):
+    # what is leaving or heading to the actor's points
+    return items.list_in_transfer(current_user)
 
 
 @router.get("/{item_id}/history", response_model=list[CustodyRecordOut])
