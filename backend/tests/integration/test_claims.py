@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import event, select, text
 
 from domain.claims import ClaimStatus, RejectionReason
+from domain.custody import CustodyEvent
 from domain.errors import InvalidTransition, ItemAlreadyClaimed, ItemNotAvailable
 from domain.items import ItemStatus
 from models import Category, Claim, CollectionPoint, Color, Item, ItemQuestion, Location, User
@@ -139,7 +140,7 @@ def test_rn11_other_users_claim_the_same_item(uow, item, joao, carlos, maria):
     uow.commit()
 
     # oldest first, the order the attendant reviews them in
-    pending = uow.claims.list_pending(None, reviewer_id=maria.id)
+    pending = uow.claims.list_pending(None, staff_id=maria.id)
     assert [c.claimant_id for c in pending] == [joao.id, carlos.id]
 
 
@@ -307,7 +308,30 @@ def test_completed_claim_cannot_be_cancelled(uow, new_item, joao):
     assert claim.item.status == ItemStatus.RETURNED
 
 
-# --- row locks (RN11, RN12, RN15 counted under the user's lock; cancel vs. approve) ---
+def test_rn06_pick_up_completes_the_claim_and_writes_devolucao(db, uow, item, joao, maria):
+    point_id = item.collection_point_id
+    claim = Claim.submit(item, joao.id, RIGHT, 1.0, at=NOW)
+    uow.claims.add(claim)
+    uow.commit()
+    claim.approve(by=maria.id, at=NOW, pickup_code="AB12CD")
+    uow.commit()
+
+    claim.pick_up(
+        "AB12CD", point_id=point_id, document_checked=True, by=maria.id, at=NOW + timedelta(days=1)
+    )
+    uow.commit()
+    saved = reload(db, claim)
+
+    assert saved.status == ClaimStatus.COMPLETED
+    assert saved.item.status == ItemStatus.RETURNED
+    # RN06: the approval wrote the reservation, the pickup writes the return after it
+    assert [(r.event, r.collection_point_id, r.actor_id, r.at) for r in saved.item.history] == [
+        (CustodyEvent.RESERVATION, point_id, maria.id, NOW),
+        (CustodyEvent.RETURN, point_id, maria.id, NOW + timedelta(days=1)),
+    ]
+
+
+# --- row locks (RN11, RN12, RN15 counted under the user's lock; cancel vs. approve or pickup) ---
 
 
 @pytest.fixture
@@ -387,3 +411,42 @@ def test_active_claims_of_a_deleted_account_are_selected_for_update(uow, item, j
 
 def test_claim_get_for_update_of_an_unknown_claim_is_none(uow):
     assert uow.claims.get_for_update(999_999_999) is None
+
+
+def test_rn14_pending_claims_of_an_item_are_selected_for_update(uow, item, joao, sent_sql):
+    # a cancellation racing the pickup waits for it, instead of being overwritten by the rejection
+    uow.claims.add(claim_in(item, joao, ClaimStatus.PENDING))
+    uow.commit()
+
+    uow.claims.lock_pending_by_item(item.id)
+
+    assert sent_sql[-1].rstrip().endswith("FOR UPDATE")
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        ClaimStatus.APPROVED,
+        ClaimStatus.REJECTED,
+        ClaimStatus.CANCELLED,
+        ClaimStatus.COMPLETED,
+        ClaimStatus.EXPIRED,
+    ],
+)
+def test_rn14_only_the_pending_claims_of_that_item_are_locked(
+    db, uow, item, new_item, joao, carlos, status
+):
+    other_item = new_item()
+    ana = add_user(db, "Ana Lima", "ana@example.com")
+    first = claim_in(item, joao, ClaimStatus.PENDING)
+    second = claim_in(item, ana, ClaimStatus.PENDING)
+    uow.claims.add(first)
+    uow.claims.add(second)
+    uow.claims.add(claim_in(item, carlos, status))
+    # pending, but on another item: the pickup of `item` leaves it alone
+    uow.claims.add(claim_in(other_item, carlos, ClaimStatus.PENDING))
+    uow.commit()
+
+    locked = uow.claims.lock_pending_by_item(item.id)
+
+    assert sorted(c.id for c in locked) == [first.id, second.id]
