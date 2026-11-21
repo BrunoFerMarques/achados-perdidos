@@ -68,7 +68,8 @@ def can_operate_item(actor: Actor, item_point_id: int, actor_point_ids: set[int]
 def can_review_claim(
     actor: Actor, claimant_id: int, item_point_id: int, actor_point_ids: set[int]
 ) -> bool:
-    # nobody reviews their own claim: a user who claimed and was later made an attendant (RN21)
+    # nobody reviews or hands over their own claim: a user who claimed and was later made an
+    # attendant (RN21)
     return (
         can_review_claims(actor)
         and actor.id != claimant_id
@@ -78,6 +79,11 @@ def can_review_claim(
 
 def can_view_custody(actor: Actor) -> bool:
     # RN53: the finder and the claimant only follow the status; the history is for the staff
+    return actor.role in (Role.ATENDENTE, Role.ADMIN)
+
+
+def can_transfer_items(actor: Actor) -> bool:
+    # RN05: the staff sends items between points and follows them; RN41 then checks which ones
     return actor.role in (Role.ATENDENTE, Role.ADMIN)
 
 

@@ -1,15 +1,19 @@
 # Claims in the database (scope §6): the indexes behind RN11 and RN13, the Claim model and the
 # row locks that keep two requests at once from racing past the service checks
+import re
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
-from sqlalchemy import event, select, text
+from sqlalchemy import select, text
 
 from domain.claims import ClaimStatus, RejectionReason
+from domain.custody import CustodyEvent
 from domain.errors import InvalidTransition, ItemAlreadyClaimed, ItemNotAvailable
 from domain.items import ItemStatus
+from domain.roles import Role
 from models import Category, Claim, CollectionPoint, Color, Item, ItemQuestion, Location, User
 from repositories.unit_of_work import UnitOfWork
+from services.claim import ClaimService
 
 NOW = datetime(2026, 11, 16, 12, 0, tzinfo=UTC)
 RIGHT = ["azul", "banda queen", "8F3A"]
@@ -139,7 +143,7 @@ def test_rn11_other_users_claim_the_same_item(uow, item, joao, carlos, maria):
     uow.commit()
 
     # oldest first, the order the attendant reviews them in
-    pending = uow.claims.list_pending(None, reviewer_id=maria.id)
+    pending = uow.claims.list_pending(None, staff_id=maria.id)
     assert [c.claimant_id for c in pending] == [joao.id, carlos.id]
 
 
@@ -307,21 +311,30 @@ def test_completed_claim_cannot_be_cancelled(uow, new_item, joao):
     assert claim.item.status == ItemStatus.RETURNED
 
 
-# --- row locks (RN11, RN12, RN15 counted under the user's lock; cancel vs. approve) ---
+def test_rn06_pick_up_completes_the_claim_and_writes_devolucao(db, uow, item, joao, maria):
+    point_id = item.collection_point_id
+    claim = Claim.submit(item, joao.id, RIGHT, 1.0, at=NOW)
+    uow.claims.add(claim)
+    uow.commit()
+    claim.approve(by=maria.id, at=NOW, pickup_code="AB12CD")
+    uow.commit()
+
+    claim.pick_up(
+        "AB12CD", point_id=point_id, document_checked=True, by=maria.id, at=NOW + timedelta(days=1)
+    )
+    uow.commit()
+    saved = reload(db, claim)
+
+    assert saved.status == ClaimStatus.COMPLETED
+    assert saved.item.status == ItemStatus.RETURNED
+    # RN06: the approval wrote the reservation, the pickup writes the return after it
+    assert [(r.event, r.collection_point_id, r.actor_id, r.at) for r in saved.item.history] == [
+        (CustodyEvent.RESERVATION, point_id, maria.id, NOW),
+        (CustodyEvent.RETURN, point_id, maria.id, NOW + timedelta(days=1)),
+    ]
 
 
-@pytest.fixture
-def sent_sql(db):
-    """The SQL statements the session sends from here on."""
-    statements: list[str] = []
-
-    def record(conn, cursor, statement, parameters, context, executemany):
-        statements.append(statement)
-
-    conn = db.connection()
-    event.listen(conn, "before_cursor_execute", record)
-    yield statements
-    event.remove(conn, "before_cursor_execute", record)
+# --- row locks (RN11, RN12, RN15 counted under the user's lock; cancel vs. approve or pickup) ---
 
 
 def test_user_lock_selects_the_row_for_update(uow, joao, sent_sql):
@@ -387,3 +400,107 @@ def test_active_claims_of_a_deleted_account_are_selected_for_update(uow, item, j
 
 def test_claim_get_for_update_of_an_unknown_claim_is_none(uow):
     assert uow.claims.get_for_update(999_999_999) is None
+
+
+def test_rn14_pending_claims_of_an_item_are_selected_for_update(uow, item, joao, sent_sql):
+    # a cancellation racing the pickup waits for it, instead of being overwritten by the rejection
+    uow.claims.add(claim_in(item, joao, ClaimStatus.PENDING))
+    uow.commit()
+
+    uow.claims.lock_pending_by_item(item.id)
+
+    assert sent_sql[-1].rstrip().endswith("FOR UPDATE")
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        ClaimStatus.APPROVED,
+        ClaimStatus.REJECTED,
+        ClaimStatus.CANCELLED,
+        ClaimStatus.COMPLETED,
+        ClaimStatus.EXPIRED,
+    ],
+)
+def test_rn14_only_the_pending_claims_of_that_item_are_locked(
+    db, uow, item, new_item, joao, carlos, status
+):
+    other_item = new_item()
+    ana = add_user(db, "Ana Lima", "ana@example.com")
+    first = claim_in(item, joao, ClaimStatus.PENDING)
+    second = claim_in(item, ana, ClaimStatus.PENDING)
+    uow.claims.add(first)
+    uow.claims.add(second)
+    uow.claims.add(claim_in(item, carlos, status))
+    # pending, but on another item: the pickup of `item` leaves it alone
+    uow.claims.add(claim_in(other_item, carlos, ClaimStatus.PENDING))
+    uow.commit()
+
+    locked = uow.claims.lock_pending_by_item(item.id)
+
+    assert sorted(c.id for c in locked) == [first.id, second.id]
+
+
+# --- the review locks the item too (RN05 vs. RN13) ---
+
+
+class StoppedClock:
+    """The service's clock, stopped at NOW."""
+
+    def now(self) -> datetime:
+        return NOW
+
+
+@pytest.fixture
+def admin(db):
+    """Reviews claims at any point, so no attendant has to be linked to the item's point."""
+    user = add_user(db, "Admin", "admin@example.com")
+    user.role = Role.ADMIN
+    db.flush()
+    return user
+
+
+def locked_tables(statements: list[str]) -> list[str]:
+    # the table each SELECT ... FOR UPDATE reads, in the order they were sent
+    return [
+        re.search(r"\bFROM (\w+)", statement).group(1)
+        for statement in statements
+        if statement.rstrip().endswith("FOR UPDATE")
+    ]
+
+
+def test_approval_locks_the_claim_and_then_its_item(uow, item, joao, admin, sent_sql):
+    # a transfer, an arrival or a receipt of the same item waits for the approval, or the
+    # approval for them; always claim first, item second
+    claim = claim_in(item, joao, ClaimStatus.PENDING)
+    uow.claims.add(claim)
+    uow.commit()
+
+    ClaimService(uow, StoppedClock()).approve(admin, claim.id)
+
+    assert locked_tables(sent_sql) == ["claims", "items"]
+    assert claim.status == ClaimStatus.APPROVED
+
+
+def test_rn13_approval_that_waited_for_a_transfer_sees_the_item_on_its_way(
+    db, uow, item, joao, admin
+):
+    # RN05: the transfer committed while the approval waited for the lock; reserving the item
+    # from the copy loaded before the wait would take it off a shelf it already left
+    claim = claim_in(item, joao, ClaimStatus.PENDING)
+    uow.claims.add(claim)
+    destination = CollectionPoint(name="Restaurante")
+    db.add(destination)
+    uow.commit()
+    # read from the database before the change below; a plain SELECT would keep this stale copy
+    db.refresh(item)
+    assert item.status == ItemStatus.AVAILABLE
+    db.execute(
+        text("UPDATE items SET status = 'em_transferencia', transfer_to_id = :to WHERE id = :id"),
+        {"to": destination.id, "id": item.id},
+    )
+
+    with pytest.raises(ItemNotAvailable):
+        ClaimService(uow, StoppedClock()).approve(admin, claim.id)
+
+    assert (claim.status, item.status) == (ClaimStatus.PENDING, ItemStatus.IN_TRANSFER)

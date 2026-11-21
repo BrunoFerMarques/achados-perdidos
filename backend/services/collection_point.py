@@ -6,7 +6,7 @@ from domain.errors import (
     UserIsNotAttendant,
     UserNotFound,
 )
-from domain.permissions import can_manage_collection_points, ensure
+from domain.permissions import can_manage_collection_points, ensure, operates_every_point
 from domain.roles import Role
 from models import CollectionPoint, CollectionPointAttendant, User
 from repositories.unit_of_work import UnitOfWork
@@ -22,6 +22,15 @@ class CollectionPointService:
     def list_all(self) -> Sequence[CollectionPoint]:
         # public: the finder picks a point when registering an item
         return self._uow.collection_points.list_all()
+
+    def list_mine(self, actor: User) -> Sequence[CollectionPoint]:
+        # RN41: the counters the actor works at, for the screens of the staff; an admin works at
+        # every point, and anyone else at none, even an attendant demoted with the links still there
+        if operates_every_point(actor):
+            return self._uow.collection_points.list_all()
+        if actor.role != Role.ATENDENTE:
+            return []
+        return self._uow.collection_points.list_of_attendant(actor.id)
 
     def create(self, actor: User, name: str) -> CollectionPoint:
         ensure(can_manage_collection_points(actor))

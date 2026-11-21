@@ -75,7 +75,8 @@ class UserIsNotAttendant(ConflictError):
     message = "O usuário não é atendente"
 
 
-class InvalidPickupCode(NotFoundError):
+class InvalidPickupCode(InvalidRequestError):
+    # 422, not 404: the claim exists, the code typed for it doesn't fit
     message = "Código de retirada inválido"
 
 
@@ -141,3 +142,11 @@ class LocationNotFound(NotFoundError):
 
 class ColorNotFound(NotFoundError):
     message = "Cor não encontrada"
+
+
+class ItemAlreadyAtThisPoint(InvalidRequestError):
+    message = "O item já está neste ponto de coleta"
+
+
+class ItemNotInTransfer(ConflictError):
+    message = "O item não está em transferência"

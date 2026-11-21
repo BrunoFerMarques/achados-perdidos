@@ -196,3 +196,66 @@ def test_deleting_the_attendant_removes_the_link(client, admin, carla, create_po
 
     assert client.delete(f"/v1/users/{carla.id}", headers=admin.headers).status_code == 204
     assert client.get(attendants_url(point["id"]), headers=admin.headers).json() == []
+
+
+# --- the points of whoever is logged in (RN41), for the counter screens ---
+
+
+def test_attendant_sees_only_the_points_they_work_at(client, carla, create_point, link):
+    library = create_point("Biblioteca")
+    create_point("Restaurante")
+    office = create_point("Secretaria")
+    link(office["id"], carla.id)
+    link(library["id"], carla.id)
+
+    response = client.get(f"{URL}/mine", headers=carla.headers)
+
+    assert response.status_code == 200
+    assert [p["name"] for p in response.json()] == ["Biblioteca", "Secretaria"]
+
+
+def test_attendant_does_not_see_the_links_of_another_attendant(
+    client, signup, carla, create_point, link
+):
+    # the other attendant shares the library and also works at the restaurant: one row, only Carla's
+    other = signup(MARIA, Role.ATENDENTE)
+    library = create_point("Biblioteca")
+    restaurant = create_point("Restaurante")
+    link(library["id"], carla.id)
+    link(library["id"], other.id)
+    link(restaurant["id"], other.id)
+
+    response = client.get(f"{URL}/mine", headers=carla.headers)
+
+    assert response.status_code == 200
+    assert response.json() == [library]
+
+
+def test_admin_works_at_every_point(client, admin, create_point):
+    create_point("Secretaria")
+    create_point("Biblioteca")
+
+    response = client.get(f"{URL}/mine", headers=admin.headers)
+
+    assert [p["name"] for p in response.json()] == ["Biblioteca", "Secretaria"]
+
+
+def test_user_works_at_no_point(client, maria, create_point):
+    create_point("Biblioteca")
+
+    assert client.get(f"{URL}/mine", headers=maria.headers).json() == []
+
+
+def test_demoted_attendant_works_at_no_point(client, admin, carla, create_point, link):
+    # the link stays in the table after the demotion, but a user operates no counter (RN41)
+    link(create_point("Biblioteca")["id"], carla.id)
+    client.patch(f"/v1/users/{carla.id}/role", json={"role": "usuario"}, headers=admin.headers)
+
+    assert client.get(f"{URL}/mine", headers=carla.headers).json() == []
+
+
+def test_my_points_need_a_login(client):
+    response = client.get(f"{URL}/mine")
+
+    assert response.status_code == 401
+    assert response.json() == NOT_AUTHENTICATED

@@ -1,6 +1,6 @@
-# Claims (scope §6, §7) and the attendant's review (RN22, RN41)
+# Claims (scope §6, §7), the attendant's review (RN22, RN41) and the pickup (RN14, RN44 to RN46)
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import psycopg
 import pytest
@@ -19,7 +19,7 @@ WRONG = ["verde", "nenhum", "0000"]
 
 
 def set_item_status(item_id: int, status: str) -> None:
-    # receiving an item (Parte 1) has no route yet, so the test puts it on the shelf directly
+    # straight into any status, without walking the item through receipt or transfer
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         conn.execute("UPDATE items SET status = %s WHERE id = %s", (status, item_id))
 
@@ -27,16 +27,6 @@ def set_item_status(item_id: int, status: str) -> None:
 def item_status(item_id: int) -> str:
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         return conn.execute("SELECT status FROM items WHERE id = %s", (item_id,)).fetchone()[0]
-
-
-def add_rejection(item_id: int, claimant_id: int, reason: str, at: datetime) -> None:
-    # RN14: returning an item (the pickup) has no route yet, so the test writes the rejection
-    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
-        conn.execute(
-            "INSERT INTO claims (item_id, claimant_id, status, score, rejection_reason, "
-            "rejected_at) VALUES (%s, %s, 'rejeitada', 1, %s, %s)",
-            (item_id, claimant_id, reason, at),
-        )
 
 
 @pytest.fixture
@@ -175,6 +165,48 @@ def test_rn23_expected_answers_never_reach_the_claimant(client, joao, item, cloc
         assert "8F3A" not in text
 
 
+def questions_of(client, account, item_id: int):
+    return client.get(f"{URL}/items/{item_id}/questions", headers=account.headers)
+
+
+def test_claimant_gets_the_questions_without_the_answers(client, joao, item):
+    # RN23: the form shows each question in order, never the expected answer
+    response = questions_of(client, joao, item)
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"position": 1, "question": "Qual a cor da capinha?"},
+        {"position": 2, "question": "Tem algum adesivo? Qual?"},
+        {"position": 3, "question": "Últimos 4 dígitos do número de série?"},
+    ]
+
+
+def test_rn10_finder_gets_no_form_for_their_own_item(client, maria, item):
+    assert questions_of(client, maria, item).status_code == 403
+
+
+@pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
+def test_only_users_get_the_claim_form(client, signup, item, role):
+    assert questions_of(client, signup(JOAO, role), item).status_code == 403
+
+
+def test_item_that_takes_no_claim_has_no_form(client, joao, register):
+    assert questions_of(client, joao, register("reservado")).status_code == 409
+
+
+def test_form_of_an_unknown_item_is_404(client, joao):
+    assert questions_of(client, joao, 999).status_code == 404
+
+
+@pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
+def test_staff_get_403_not_404_for_the_form_of_an_unknown_item(client, signup, role):
+    # the role is checked before the item is looked up
+    response = questions_of(client, signup(JOAO, role), 999)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Sem permissão para esta operação"}
+
+
 def test_requires_login(client, item):
     response = client.post(URL, json={"item_id": item, "answers": RIGHT})
 
@@ -189,6 +221,9 @@ def test_requires_login(client, item):
         ("POST", f"{URL}/1/cancel"),
         ("POST", f"{URL}/1/approve"),
         ("POST", f"{URL}/1/reject"),
+        ("GET", f"{URL}/approved"),
+        ("POST", f"{URL}/1/pickup"),
+        ("GET", f"{URL}/items/1/questions"),
     ],
 )
 def test_every_claim_route_requires_login(client, method, url):
@@ -225,7 +260,6 @@ def test_unknown_item_is_404(client, joao, clock):
     [
         ("registrado", 409),
         ("disponivel", 201),
-        ("em_transferencia", 201),
         ("reservado", 409),
         ("devolvido", 409),
         ("expirado", 409),
@@ -254,6 +288,21 @@ def test_one_answer_per_question_or_422(client, joao, item, clock):
 
     assert response.status_code == 422
     assert client.get(f"{URL}/me", headers=joao.headers).json() == []
+
+
+def test_rn10_own_item_is_403_before_the_answer_count(client, maria, item, clock):
+    # the item is checked before the answers, like the form does: 403, not 422
+    response = claim(client, maria, item, ["azul", "banda queen"])
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Você não pode reivindicar um item que registrou"}
+
+
+def test_item_that_takes_no_claim_is_409_before_the_answer_count(client, joao, register, clock):
+    response = claim(client, joao, register("reservado"), ["azul", "banda queen"])
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Este item não aceita reivindicações"}
 
 
 def test_blank_answer_is_allowed_and_counts_as_wrong(client, joao, item, clock):
@@ -346,6 +395,17 @@ def test_rn12_cancelling_a_claim_frees_a_slot(client, joao, register, clock):
     assert response.status_code == 201
 
 
+def test_rn12_user_at_the_limit_still_gets_the_form(client, joao, register, clock):
+    # RN12 is left to the claim itself: the user may cancel another one before sending it
+    for _ in range(3):
+        claim(client, joao, register())
+
+    response = questions_of(client, joao, register())
+
+    assert response.status_code == 200
+    assert [q["position"] for q in response.json()] == [1, 2, 3]
+
+
 # --- RN15 and RN16: blocking after failed claims ---
 
 
@@ -360,6 +420,22 @@ def test_rn15_three_failures_block_claiming(client, joao, register, clock):
     response = claim(client, joao, register())
 
     assert response.status_code == 403
+
+
+def test_rn15_blocked_user_gets_no_claim_form(client, joao, register, clock):
+    fail_three_times(client, joao, register)
+
+    assert questions_of(client, joao, register()).status_code == 403
+
+
+@pytest.mark.parametrize("answers", [RIGHT, WRONG], ids=["pending", "rejected"])
+def test_rn11_no_form_after_claiming_the_same_item(client, joao, item, answers, clock):
+    claim(client, joao, item, answers)
+
+    response = questions_of(client, joao, item)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Você já reivindicou este item"}
 
 
 def test_rn15_block_ends_after_7_days(client, joao, register, clock):
@@ -413,18 +489,6 @@ def test_rn15_only_failures_within_30_days_block(client, joao, register, gap, co
     claim(client, joao, register(), WRONG)
     clock.current += gap
     claim(client, joao, register(), WRONG)
-
-    response = claim(client, joao, register())
-
-    assert response.status_code == code
-
-
-@pytest.mark.parametrize(("reason", "code"), [("item_devolvido", 201), ("nota_baixa", 403)])
-def test_rn14_rejection_because_the_item_went_to_someone_else_is_not_a_failure(
-    client, joao, register, reason, code, clock
-):
-    for _ in range(3):
-        add_rejection(register(), joao.id, reason, clock.now())
 
     response = claim(client, joao, register())
 
@@ -683,14 +747,6 @@ def test_approved_claim_cannot_be_rejected(client, joao, attendant, item, clock)
     assert item_status(item) == "reservado"
 
 
-def test_rn13_item_in_transfer_cannot_be_approved_yet(client, joao, attendant, register, clock):
-    pending = claim(client, joao, register("em_transferencia")).json()
-
-    response = client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
-
-    assert response.status_code == 409
-
-
 def test_rn41_attendant_from_another_point_gets_403(client, joao, other_attendant, item, clock):
     pending = claim(client, joao, item).json()
 
@@ -724,3 +780,303 @@ def test_unknown_claim_is_404(client, admin, action):
     response = client.post(f"{URL}/999/{action}", headers=admin.headers)
 
     assert response.status_code == 404
+
+
+# --- the pickup at the counter (RN14, RN44 to RN46) ---
+
+
+def approved(client, account, attendant, item_id: int) -> tuple[int, str]:
+    """`account` claims the item and the attendant approves it: the claim id and its pickup code."""
+    claim_id = claim(client, account, item_id).json()["id"]
+    assert client.post(f"{URL}/{claim_id}/approve", headers=attendant.headers).status_code == 200
+    mine = client.get(f"{URL}/me", headers=account.headers).json()
+    return claim_id, next(c["pickup_code"] for c in mine if c["id"] == claim_id)
+
+
+def pick_up(client, account, claim_id: int, point: int, code: str, document_checked: bool = True):
+    body = {"collection_point_id": point, "pickup_code": code, "document_checked": document_checked}
+    return client.post(f"{URL}/{claim_id}/pickup", json=body, headers=account.headers)
+
+
+def other_code(code: str) -> str:
+    return "ZZZZZZ" if code != "ZZZZZZ" else "YYYYYY"
+
+
+def test_pickup_returns_the_item_and_completes_the_claim(
+    client, joao, attendant, item, point, clock
+):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "concluida"
+    assert item_status(item) == "devolvido"
+    [mine] = client.get(f"{URL}/me", headers=joao.headers).json()
+    assert mine["status"] == "concluida"
+    # RN44: a used code opens nothing, so the claimant no longer sees it
+    assert mine["pickup_code"] is None
+
+
+def test_rn06_pickup_writes_the_return_in_the_history(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    pick_up(client, attendant, claim_id, point, code)
+
+    history = client.get(f"/v1/items/{item}/history", headers=attendant.headers).json()
+    assert history[-1] == {
+        "event": "devolucao",
+        "collection_point_id": point,
+        "actor_id": attendant.id,
+        "at": clock.now().isoformat().replace("+00:00", "Z"),
+    }
+
+
+def test_rn44_code_is_single_use(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+    pick_up(client, attendant, claim_id, point, code)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Código de retirada já usado"}
+
+
+def test_rn44_wrong_code_is_422_and_the_item_stays_reserved(
+    client, joao, attendant, item, point, clock
+):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, point, other_code(code))
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Código de retirada inválido"}
+    assert item_status(item) == "reservado"
+
+
+def test_rn44_typed_code_ignores_case_and_surrounding_spaces(
+    client, joao, attendant, item, point, clock
+):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, point, f" {code.lower()} ")
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("code", ["", "ABC", "ABC12345"])
+def test_rn44_code_with_another_length_is_422(client, joao, attendant, item, point, code, clock):
+    claim_id, _ = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 422
+
+
+def test_rn44_code_still_works_just_before_the_5_days(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+    clock.current += timedelta(days=5, seconds=-1)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 200
+
+
+def test_rn44_code_expires_5_days_after_the_approval(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+    clock.current += timedelta(days=5)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Código de retirada vencido"}
+    assert item_status(item) == "reservado"
+
+
+def test_rn45_code_is_only_accepted_at_the_point_where_the_item_is(
+    client, admin, joao, attendant, item, point, clock
+):
+    # the attendant works at two points; the item is at the first one
+    second = new_point(client, admin, "Ginásio")
+    client.post(
+        f"/v1/collection-points/{second}/attendants",
+        json={"user_id": attendant.id},
+        headers=admin.headers,
+    )
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, second, code)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "O item não está neste ponto de coleta"}
+    assert item_status(item) == "reservado"
+
+
+def test_rn46_photo_id_must_be_checked(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, attendant, claim_id, point, code, document_checked=False)
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "detail": "Confira o documento com foto antes de concluir a retirada"
+    }
+    assert item_status(item) == "reservado"
+
+
+def test_rn46_photo_id_check_has_no_default(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+    body = {"collection_point_id": point, "pickup_code": code}
+
+    response = client.post(f"{URL}/{claim_id}/pickup", json=body, headers=attendant.headers)
+
+    assert response.status_code == 422
+
+
+def test_rn41_attendant_from_another_point_cannot_validate_the_pickup(
+    client, joao, attendant, other_attendant, item, point, clock
+):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, other_attendant, claim_id, point, code)
+
+    assert response.status_code == 403
+    assert item_status(item) == "reservado"
+
+
+def test_claimant_cannot_validate_their_own_pickup(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, joao, claim_id, point, code)
+
+    assert response.status_code == 403
+    assert item_status(item) == "reservado"
+
+
+def test_attendant_never_hands_over_their_own_claim(
+    client, signup, admin, attendant, item, point, clock
+):
+    # RN21: approved as a user, then promoted and linked to the item's point
+    account = signup(CARLOS)
+    claim_id, code = approved(client, account, attendant, item)
+    client.patch(f"/v1/users/{account.id}/role", json={"role": "atendente"}, headers=admin.headers)
+    client.post(
+        f"/v1/collection-points/{point}/attendants",
+        json={"user_id": account.id},
+        headers=admin.headers,
+    )
+
+    assert client.get(f"{URL}/approved", headers=account.headers).json() == []
+    response = pick_up(client, account, claim_id, point, code)
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Sem permissão para esta operação"}
+    assert item_status(item) == "reservado"
+
+
+def test_admin_validates_a_pickup_at_any_point(client, admin, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+
+    response = pick_up(client, admin, claim_id, point, code)
+
+    assert response.status_code == 200
+    assert item_status(item) == "devolvido"
+
+
+def test_pending_claim_has_no_pickup_code(client, joao, attendant, item, point, clock):
+    pending = claim(client, joao, item).json()
+
+    response = pick_up(client, attendant, pending["id"], point, "AB12CD")
+
+    assert response.status_code == 422
+
+
+def test_rn44_code_of_a_cancelled_claim_no_longer_works(
+    client, joao, attendant, item, point, clock
+):
+    claim_id, code = approved(client, joao, attendant, item)
+    client.post(f"{URL}/{claim_id}/cancel", headers=joao.headers)
+
+    response = pick_up(client, attendant, claim_id, point, code)
+
+    assert response.status_code == 422
+    assert item_status(item) == "disponivel"
+
+
+def test_unknown_claim_pickup_is_404(client, admin, point):
+    response = pick_up(client, admin, 999, point, "AB12CD")
+
+    assert response.status_code == 404
+
+
+def test_rn14_pickup_turns_down_the_other_pending_claims(
+    client, signup, joao, attendant, item, point, clock
+):
+    other = signup(CARLOS)
+    claim(client, other, item)
+    claim_id, code = approved(client, joao, attendant, item)
+
+    pick_up(client, attendant, claim_id, point, code)
+
+    [theirs] = client.get(f"{URL}/me", headers=other.headers).json()
+    assert theirs["status"] == "rejeitada"
+    assert client.get(f"{URL}/pending", headers=attendant.headers).json() == []
+
+
+def test_rn14_rn15_losing_an_item_to_its_owner_is_not_a_failed_attempt(
+    client, signup, joao, attendant, register, point, clock
+):
+    other = signup(CARLOS)
+    for _ in range(3):
+        item = register()
+        claim(client, other, item)
+        claim_id, code = approved(client, joao, attendant, item)
+        pick_up(client, attendant, claim_id, point, code)
+
+    # three rejections, none of them a failure: Carlos can still claim
+    response = claim(client, other, register())
+
+    assert response.status_code == 201
+
+
+def test_awaiting_pickup_lists_approved_claims_with_the_claimant_name(
+    client, joao, attendant, register, point, clock
+):
+    item = register()
+    claim_id, _ = approved(client, joao, attendant, item)
+    claim(client, joao, register())  # still pending: not waiting for a pickup
+
+    response = client.get(f"{URL}/approved", headers=attendant.headers)
+
+    assert response.status_code == 200
+    # the name for the photo ID check (RN46); no pickup code, the claimant shows it
+    assert response.json() == [
+        {
+            "id": claim_id,
+            "item_id": item,
+            "item_description": "Garrafa azul com adesivo",
+            "claimant_id": joao.id,
+            "claimant_name": "João Souza",
+            "status": "aprovada",
+            "collection_point_id": point,
+            "pickup_deadline": (clock.now() + timedelta(days=5)).isoformat().replace("+00:00", "Z"),
+        }
+    ]
+
+
+def test_picked_up_claims_leave_the_pickup_list(client, joao, attendant, item, point, clock):
+    claim_id, code = approved(client, joao, attendant, item)
+    pick_up(client, attendant, claim_id, point, code)
+
+    assert client.get(f"{URL}/approved", headers=attendant.headers).json() == []
+
+
+def test_rn41_pickup_list_only_has_claims_at_the_attendants_points(
+    client, joao, attendant, other_attendant, item, clock
+):
+    approved(client, joao, attendant, item)
+
+    assert client.get(f"{URL}/approved", headers=other_attendant.headers).json() == []
+
+
+def test_users_cannot_see_the_pickup_list(client, joao):
+    assert client.get(f"{URL}/approved", headers=joao.headers).status_code == 403

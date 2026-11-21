@@ -13,6 +13,16 @@ class CollectionPointRepository(Repository[CollectionPoint]):
         stmt = select(CollectionPoint).order_by(CollectionPoint.name)
         return self._session.scalars(stmt).all()
 
+    def list_of_attendant(self, user_id: int) -> Sequence[CollectionPoint]:
+        # RN40: the points the attendant is linked to, by name
+        stmt = (
+            select(CollectionPoint)
+            .join(CollectionPointAttendant, CollectionPointAttendant.point_id == CollectionPoint.id)
+            .where(CollectionPointAttendant.user_id == user_id)
+            .order_by(CollectionPoint.name)
+        )
+        return self._session.scalars(stmt).all()
+
 
 class CollectionPointAttendantRepository(Repository[CollectionPointAttendant]):
     """The link has a two-column key, so it gets its own lookups instead of get(id)."""
