@@ -91,5 +91,23 @@ class ItemService:
             raise ItemNotFound()
         return self._uow.custody.list_by_item(item_id)
 
+    def list_public(
+        self,
+        *,
+        q: str | None,
+        category_id: int | None,
+        location_id: int | None,
+        found_from: date | None,
+        found_to: date | None,
+    ) -> Sequence[Item]:
+        # public: no ensure; read-only: no commit
+        return self._uow.items.search_public(
+            q=q,
+            category_id=category_id,
+            location_id=location_id,
+            found_from=found_from,
+            found_to=found_to,
+        )
+
     def _point_ids(self, actor: User) -> set[int]:
         return self._uow.collection_point_attendants.point_ids_of(actor.id)

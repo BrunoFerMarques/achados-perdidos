@@ -4,8 +4,9 @@ from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Identity, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from domain.custody import EVENTS
-from domain.items import ItemStatus, transition
+from domain.items import ItemStatus, public_text, transition
 from models.base import Base
+from models.category import Category
 from models.custody import CustodyRecord
 
 
@@ -37,12 +38,19 @@ class Item(Base):
     status: Mapped[str] = mapped_column(server_default=ItemStatus.REGISTERED)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
+    # the way from category_id to the category's name; not a column, so no migration
+    category: Mapped[Category] = relationship()
     # in position order, so score() compares each answer with its own question
     questions: Mapped[list["ItemQuestion"]] = relationship(
         cascade="all, delete-orphan", order_by="ItemQuestion.position"
     )
     # the custody history, oldest first; no delete-orphan: a line never leaves the book (RN43)
     history: Mapped[list[CustodyRecord]] = relationship(order_by=CustodyRecord.id)
+
+    @property
+    def public_description(self) -> str:
+        # RN52: what the public listing shows instead of the description
+        return public_text(self.category.name, self.description)
 
     def transition_to(self, target: ItemStatus, *, by: int | None, at: datetime) -> None:
         # RN01: the only way to change the status; outside the diagram it raises InvalidTransition
