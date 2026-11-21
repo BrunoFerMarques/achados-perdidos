@@ -1,9 +1,11 @@
 # Etapa 05: registering a found item with its verification questions (RN20, RN23)
 # Etapa 08: receiving it at a collection point (RN02, RN41) and its custody history (RN06, RN42)
+# Etapa 09: the public listing, its filters and what it never shows (RN50, RN52)
 from datetime import datetime, timedelta
 
 import pytest
 
+from domain.items import DOCUMENT_TEXT
 from domain.roles import Role
 
 ADMIN = {"name": "Admin", "email": "admin@example.com", "password": "senha-do-admin"}
@@ -297,3 +299,128 @@ def test_history_of_an_unknown_item_is_404(client, admin):
     response = history(client, admin, 999)
 
     assert response.status_code == 404
+
+
+# --- the public listing ---
+
+
+def category_id(client, name: str) -> int:
+    for category in client.get("/v1/categories").json():
+        if category["name"] == name:
+            return category["id"]
+    raise AssertionError(f"no category named {name}")
+
+
+def on_shelf(client, maria, attendant, point, body: dict) -> int:
+    """Registers the item and receives it, so it is on the public listing."""
+    item_id = client.post(URL, json=body, headers=maria.headers).json()["id"]
+    receive(client, attendant, item_id, point)
+    return item_id
+
+
+def listed(client, **params) -> list[int]:
+    # no headers: the listing is asked for the way anyone would
+    response = client.get(URL, params=params)
+    assert response.status_code == 200
+    return [found["id"] for found in response.json()]
+
+
+# RN50: only what is at a collection point is public
+def test_rn50_item_not_received_is_not_listed(client, item):
+    response = client.get(URL)
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_rn50_received_item_is_listed_without_private_fields(client, attendant, item, point):
+    # the pair of the test above: without it, a route that always answers [] would pass
+    receive(client, attendant, item, point)
+
+    response = client.get(URL)
+
+    [found] = response.json()
+    assert found["id"] == item
+    assert found["public_description"] == "Garrafa azul com adesivo"
+    for private in ("questions", "finder_id", "description", "status", "created_at"):
+        assert private not in found
+
+
+def test_listing_shows_the_newest_first(client, maria, attendant, point, new_item):
+    older = on_shelf(client, maria, attendant, point, {**new_item, "found_date": "2026-11-10"})
+    newer = on_shelf(client, maria, attendant, point, {**new_item, "found_date": "2026-11-14"})
+
+    assert listed(client) == [newer, older]
+
+
+def test_filter_by_category(client, maria, attendant, point, new_item):
+    bottle = on_shelf(client, maria, attendant, point, new_item)
+    backpack = on_shelf(
+        client,
+        maria,
+        attendant,
+        point,
+        {**new_item, "category_id": category_id(client, "Mochilas")},
+    )
+
+    assert listed(client, category_id=new_item["category_id"]) == [bottle]
+    assert listed(client, category_id=category_id(client, "Mochilas")) == [backpack]
+
+
+def test_filter_by_location(client, maria, attendant, point, new_item):
+    second_location = client.get("/v1/locations").json()[1]["id"]
+    here = on_shelf(client, maria, attendant, point, new_item)
+    there = on_shelf(client, maria, attendant, point, {**new_item, "location_id": second_location})
+
+    assert listed(client, location_id=new_item["location_id"]) == [here]
+    assert listed(client, location_id=second_location) == [there]
+
+
+def test_filter_by_dates_includes_both_ends(client, maria, attendant, point, new_item):
+    older = on_shelf(client, maria, attendant, point, {**new_item, "found_date": "2026-11-10"})
+    newer = on_shelf(client, maria, attendant, point, {**new_item, "found_date": "2026-11-14"})
+
+    assert listed(client, found_from="2026-11-14") == [newer]
+    assert listed(client, found_to="2026-11-10") == [older]
+    assert listed(client, found_from="2026-11-11", found_to="2026-11-13") == []
+
+
+def test_invalid_date_is_422(client):
+    response = client.get(URL, params={"found_from": "ontem"})
+
+    assert response.status_code == 422
+
+
+def test_search_ignores_case(client, maria, attendant, point, new_item):
+    bottle = on_shelf(client, maria, attendant, point, new_item)
+    on_shelf(client, maria, attendant, point, {**new_item, "description": "Mochila cinza"})
+
+    assert listed(client, q="garrafa") == [bottle]
+
+
+# RN52: a document is listed, but never with its description
+def test_rn52_a_document_is_listed_with_the_fixed_text(client, maria, attendant, point, new_item):
+    body = {
+        **new_item,
+        "category_id": category_id(client, "Documentos"),
+        "description": "RG de João Silva",
+    }
+    on_shelf(client, maria, attendant, point, body)
+
+    response = client.get(URL)
+
+    assert response.json()[0]["public_description"] == DOCUMENT_TEXT
+    assert "João Silva" not in response.text
+
+
+def test_rn52_search_does_not_find_a_document_by_the_name_in_it(
+    client, maria, attendant, point, new_item
+):
+    documents = category_id(client, "Documentos")
+    body = {**new_item, "category_id": documents, "description": "RG de João Silva"}
+    document = on_shelf(client, maria, attendant, point, body)
+
+    # finding it would confirm that someone named Silva lost a document
+    assert listed(client, q="Silva") == []
+    # it is still on the listing, through the category filter
+    assert listed(client, category_id=documents) == [document]

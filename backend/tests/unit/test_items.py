@@ -1,4 +1,4 @@
-# scope section 5 (docs/diagrama.md): item lifecycle, RN01
+# scope section 5 (docs/diagrama.md): item lifecycle, RN01; what the public listing shows, RN52
 from datetime import UTC, datetime
 from itertools import product
 
@@ -6,7 +6,14 @@ import pytest
 
 from domain.custody import CustodyEvent
 from domain.errors import InvalidTransition
-from domain.items import ItemStatus, accepts_claims, transition
+from domain.items import (
+    DOCUMENT_TEXT,
+    DOCUMENTS_CATEGORY,
+    ItemStatus,
+    accepts_claims,
+    public_text,
+    transition,
+)
 from models import Item
 
 NOW = datetime(2026, 11, 16, 12, 0, tzinfo=UTC)
@@ -98,3 +105,13 @@ def test_rn02_receive_moves_the_item_to_the_counters_point_before_the_line():
 def test_only_items_on_a_shelf_or_on_their_way_accept_claims(status, accepts):
     # the "Aceita nova reivindicação" column of the table in scope section 5
     assert accepts_claims(status) is accepts
+
+
+# RN52: a document's description has personal data; the listing shows a fixed text instead
+def test_rn52_a_document_shows_only_the_fixed_text():
+    assert public_text(DOCUMENTS_CATEGORY, "RG de João Silva") == DOCUMENT_TEXT
+
+
+def test_any_other_category_shows_its_own_description():
+    # the other way out of the if: without this test, a rule hiding every description would pass
+    assert public_text("Garrafas e copos", "Garrafa azul") == "Garrafa azul"

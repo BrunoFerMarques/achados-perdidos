@@ -1,10 +1,31 @@
+from datetime import date
+
 from fastapi import APIRouter
 
 from dependencies import CurrentUserDep, ItemServiceDep
 from schemas.custody import CustodyRecordOut
-from schemas.item import ItemCreate, ItemOut, ReceiveIn
+from schemas.item import ItemCreate, ItemOut, ItemPublicOut, ReceiveIn
 
 router = APIRouter(prefix="/v1/items", tags=["items"])
+
+
+@router.get("", response_model=list[ItemPublicOut])
+def list_items(
+    items: ItemServiceDep,
+    q: str | None = None,
+    category_id: int | None = None,
+    location_id: int | None = None,
+    found_from: date | None = None,
+    found_to: date | None = None,
+):
+    # public (RN50): no current_user; every filter is optional and comes in the query string
+    return items.list_public(
+        q=q,
+        category_id=category_id,
+        location_id=location_id,
+        found_from=found_from,
+        found_to=found_to,
+    )
 
 
 @router.post("", status_code=201, response_model=ItemOut)
