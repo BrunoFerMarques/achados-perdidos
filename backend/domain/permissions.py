@@ -68,7 +68,8 @@ def can_operate_item(actor: Actor, item_point_id: int, actor_point_ids: set[int]
 def can_review_claim(
     actor: Actor, claimant_id: int, item_point_id: int, actor_point_ids: set[int]
 ) -> bool:
-    # nobody reviews their own claim: a user who claimed and was later made an attendant (RN21)
+    # nobody reviews or hands over their own claim: a user who claimed and was later made an
+    # attendant (RN21)
     return (
         can_review_claims(actor)
         and actor.id != claimant_id
