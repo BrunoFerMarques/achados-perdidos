@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from dependencies import ClaimServiceDep, CurrentUserDep
-from schemas.claim import ClaimCreate, ClaimOut, ClaimReviewOut
+from schemas.claim import ClaimCreate, ClaimOut, ClaimPickupOut, ClaimReviewOut, PickupIn
 
 # every route takes CurrentUserDep; who may do what is decided by the service
 router = APIRouter(prefix="/v1/claims", tags=["claims"])
@@ -39,3 +39,25 @@ def approve_claim(claim_id: int, current_user: CurrentUserDep, claims: ClaimServ
 @router.post("/{claim_id}/reject", response_model=ClaimReviewOut)
 def reject_claim(claim_id: int, current_user: CurrentUserDep, claims: ClaimServiceDep):
     return claims.reject(current_user, claim_id)
+
+
+# --- the pickup at the counter (RN44 to RN46) ---
+
+
+@router.get("/approved", response_model=list[ClaimPickupOut])
+def list_approved_claims(current_user: CurrentUserDep, claims: ClaimServiceDep):
+    return claims.list_approved(current_user)
+
+
+@router.post("/{claim_id}/pickup", response_model=ClaimPickupOut)
+def pick_up_claim(
+    claim_id: int, payload: PickupIn, current_user: CurrentUserDep, claims: ClaimServiceDep
+):
+    # an action route: the code, the counter and the photo ID check come in the body
+    return claims.pick_up(
+        current_user,
+        claim_id,
+        collection_point_id=payload.collection_point_id,
+        pickup_code=payload.pickup_code,
+        document_checked=payload.document_checked,
+    )

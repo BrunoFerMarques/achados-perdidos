@@ -17,6 +17,7 @@ from domain.items import ItemStatus
 from domain.verification import passes
 from models.base import Base
 from models.item import Item
+from models.user import User
 
 
 class Claim(Base):
@@ -53,6 +54,8 @@ class Claim(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     item: Mapped[Item] = relationship()
+    # the attendant reads the name to check the photo ID at the pickup (RN46)
+    claimant: Mapped[User] = relationship()
     # in position order, like Item.questions, so each answer sits next to its question
     answers: Mapped[list["ClaimAnswer"]] = relationship(
         cascade="all, delete-orphan", order_by="ClaimAnswer.position"
@@ -108,6 +111,24 @@ class Claim(Base):
         if was_approved:
             # the item was waiting for this claimant; it goes back on the shelf
             self.item.transition_to(ItemStatus.AVAILABLE, by=by, at=at)
+
+    def pick_up(
+        self, typed_code: str, *, point_id: int, document_checked: bool, by: int, at: datetime
+    ) -> None:
+        # RN44 to RN46: the domain checks the code, the deadline, the counter and the photo ID
+        self.transition_to(
+            pickup.complete_pickup(
+                self.status,
+                code=self.pickup_code,
+                typed_code=typed_code,
+                deadline=self.pickup_deadline,
+                item_point_id=self.collection_point_id,
+                point_id=point_id,
+                document_checked=document_checked,
+                now=at,
+            )
+        )
+        self.item.transition_to(ItemStatus.RETURNED, by=by, at=at)
 
     def _record_rejection(self, reason: RejectionReason, at: datetime) -> None:
         # blocking.py counts the failures by rejected_at, so it is never left out

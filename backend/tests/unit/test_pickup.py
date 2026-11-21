@@ -12,17 +12,26 @@ from domain.errors import (
     PickupCodeAlreadyUsed,
     PickupCodeExpired,
 )
-from domain.pickup import complete_pickup, generate_code, normalize_code, pickup_deadline
+from domain.pickup import (
+    code_matches,
+    complete_pickup,
+    generate_code,
+    normalize_code,
+    pickup_deadline,
+)
 
 APPROVED_AT = datetime(2026, 11, 1, 12, tzinfo=UTC)
 DEADLINE = APPROVED_AT + timedelta(days=5)
 POINT = 1
 OTHER_POINT = 2
+CODE = "AB12CD"
 
 
 def pickup(status: ClaimStatus = ClaimStatus.APPROVED, **overrides) -> ClaimStatus:
     """A valid pickup, unless the test overrides something."""
     args = {
+        "code": CODE,
+        "typed_code": CODE,
         "deadline": DEADLINE,
         "item_point_id": POINT,
         "point_id": POINT,
@@ -57,6 +66,32 @@ def test_valid_pickup_completes_the_claim():
     assert pickup() == ClaimStatus.COMPLETED
 
 
+@pytest.mark.parametrize("typed", ["ab12cd", " AB12CD ", "Ab12cD"])
+def test_typed_code_matches_ignoring_case_and_surrounding_spaces(typed):
+    assert code_matches(CODE, typed)
+
+
+@pytest.mark.parametrize("typed", ["AB12CE", "AB12C", "", "ÁB12CD"])
+def test_another_code_does_not_match(typed):
+    # "Á" too: a non-ASCII character is just a wrong code, not a crash
+    assert not code_matches(CODE, typed)
+
+
+def test_claim_without_a_code_matches_nothing():
+    assert not code_matches(None, CODE)
+
+
+def test_wrong_code_is_refused():
+    # RN44
+    with pytest.raises(InvalidPickupCode):
+        pickup(typed_code="ZZZZZZ")
+
+
+def test_wrong_code_does_not_tell_whether_the_claim_was_used():
+    with pytest.raises(InvalidPickupCode):
+        pickup(ClaimStatus.COMPLETED, typed_code="ZZZZZZ")
+
+
 def test_code_is_single_use():
     # RN44: the first pickup completes the claim, so the same code can't be used again
     status = pickup()
@@ -86,6 +121,11 @@ def test_code_of_an_expired_claim_is_refused():
 def test_claim_that_is_not_approved_has_no_valid_code(status):
     with pytest.raises(InvalidPickupCode):
         pickup(status)
+
+
+def test_claim_that_was_never_approved_has_no_code_nor_deadline():
+    with pytest.raises(InvalidPickupCode):
+        pickup(ClaimStatus.PENDING, code=None, deadline=None)
 
 
 def test_code_is_only_accepted_at_the_point_where_the_item_is():
