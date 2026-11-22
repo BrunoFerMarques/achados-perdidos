@@ -100,3 +100,37 @@ export type PickupIn = {
   pickup_code: string
   document_checked: boolean
 }
+
+// one entry of the public lists: categories, locations and colors (CategoryOut, LocationOut, ColorOut)
+export type Option = {
+  id: number
+  name: string
+}
+
+// what anyone sees on the public listing (ItemPublicOut, RN50): no questions, no finder, no status
+export type PublicItem = {
+  id: number
+  category_id: number
+  location_id: number
+  color_id: number
+  collection_point_id: number
+  public_description: string
+  found_date: string
+}
+
+// one verification question with its expected answer, sent only when registering (RN20, RN23)
+export type QuestionInput = {
+  question: string
+  answer: string
+}
+
+// the body of POST /v1/items (ItemCreate): no status and no finder, the API fills them in
+export type ItemCreate = {
+  category_id: number
+  location_id: number
+  color_id: number
+  collection_point_id: number
+  description: string
+  found_date: string
+  questions: QuestionInput[]
+}
