@@ -26,7 +26,7 @@ from domain.permissions import (
 )
 from domain.pickup import generate_code
 from domain.verification import score
-from models import Claim, User
+from models import Claim, Item, ItemQuestion, User
 from repositories.unit_of_work import UnitOfWork
 
 
@@ -44,20 +44,11 @@ class ClaimService:
         # one claim at a time per user: the limits below are counted from the database, and a
         # burst of requests would otherwise all read the same count (RN11, RN12, RN15)
         self._uow.users.lock(actor.id)
-        item = self._uow.items.get(item_id)
-        if item is None:
-            raise ItemNotFound()
+        item = self._claimable_item(actor, item_id)
         if len(answers) != len(item.questions):
             raise WrongAnswerCount()
-        if item.finder_id == actor.id:
-            raise OwnItemClaim()  # RN10
-        if not accepts_claims(item.status):
-            raise ItemNotClaimable()
         now = self._clock.now()
-        if self._is_blocked(actor, now):
-            raise ClaimingBlocked()  # RN15
-        if self._uow.claims.has_blocking_claim(item.id, actor.id):
-            raise ItemAlreadyClaimed()  # RN11
+        self._ensure_may_try(actor, item, now)
         if self._uow.claims.count_active(actor.id) >= MAX_ACTIVE_CLAIMS:
             raise TooManyActiveClaims()  # RN12
 
@@ -66,6 +57,15 @@ class ClaimService:
         self._uow.claims.add(claim)
         self._uow.commit()
         return claim
+
+    def questions(self, actor: User, item_id: int) -> Sequence[ItemQuestion]:
+        # what the claimant answers, only when they could try; the public listing never shows them
+        # (RN50), and QuestionOut never carries the expected answer (RN23). RN12 is left out: the
+        # user may cancel another claim before sending this one
+        ensure(can_claim(actor))
+        item = self._claimable_item(actor, item_id)
+        self._ensure_may_try(actor, item, self._clock.now())
+        return item.questions
 
     def list_mine(self, actor: User) -> Sequence[Claim]:
         return self._uow.claims.list_by_claimant(actor.id)
@@ -150,6 +150,22 @@ class ClaimService:
             )
         )
         return claim
+
+    def _claimable_item(self, actor: User, item_id: int) -> Item:
+        item = self._uow.items.get(item_id)
+        if item is None:
+            raise ItemNotFound()
+        if item.finder_id == actor.id:
+            raise OwnItemClaim()  # RN10
+        if not accepts_claims(item.status):
+            raise ItemNotClaimable()
+        return item
+
+    def _ensure_may_try(self, actor: User, item: Item, now: datetime) -> None:
+        if self._is_blocked(actor, now):
+            raise ClaimingBlocked()  # RN15
+        if self._uow.claims.has_blocking_claim(item.id, actor.id):
+            raise ItemAlreadyClaimed()  # RN11
 
     def _point_ids(self, actor: User) -> set[int]:
         return self._uow.collection_point_attendants.point_ids_of(actor.id)

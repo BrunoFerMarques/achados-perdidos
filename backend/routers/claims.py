@@ -2,9 +2,16 @@ from fastapi import APIRouter
 
 from dependencies import ClaimServiceDep, CurrentUserDep
 from schemas.claim import ClaimCreate, ClaimOut, ClaimPickupOut, ClaimReviewOut, PickupIn
+from schemas.item import QuestionOut
 
 # every route takes CurrentUserDep; who may do what is decided by the service
 router = APIRouter(prefix="/v1/claims", tags=["claims"])
+
+
+@router.get("/items/{item_id}/questions", response_model=list[QuestionOut])
+def claim_questions(item_id: int, current_user: CurrentUserDep, claims: ClaimServiceDep):
+    # the form of a claim: only the questions, never the expected answers (RN23)
+    return claims.questions(current_user, item_id)
 
 
 @router.post("", status_code=201, response_model=ClaimOut)
