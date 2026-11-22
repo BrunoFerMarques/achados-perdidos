@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import Select, exists, func, select
 from sqlalchemy.orm import selectinload
 
 from domain.claims import ACTIVE_STATUSES, RECLAIM_BLOCKING_STATUSES, ClaimStatus
@@ -63,19 +63,41 @@ class ClaimRepository(Repository[Claim]):
         )
         return self._session.execute(stmt).all()
 
-    def list_pending(self, point_ids: set[int] | None, reviewer_id: int) -> Sequence[Claim]:
-        """Pending claims, oldest first; `point_ids` limits them to items at those points (RN41),
-        and None means every point. The reviewer's own claims are left out. The answers and
-        questions come along for the review (RN22)."""
+    def lock_pending_by_item(self, item_id: int) -> Sequence[Claim]:
+        # RN14: locked like get_for_update, so a cancellation at the same time isn't overwritten
+        stmt = (
+            select(Claim)
+            .where(Claim.item_id == item_id, Claim.status == ClaimStatus.PENDING)
+            .with_for_update()
+        )
+        return self._session.scalars(stmt.execution_options(populate_existing=True)).all()
+
+    def list_pending(self, point_ids: set[int] | None, staff_id: int) -> Sequence[Claim]:
+        # the answers and questions come along for the review (RN22)
+        stmt = self._for_staff(ClaimStatus.PENDING, point_ids, staff_id).options(
+            selectinload(Claim.answers), selectinload(Claim.item).selectinload(Item.questions)
+        )
+        return self._session.scalars(stmt).all()
+
+    def list_approved(self, point_ids: set[int] | None, staff_id: int) -> Sequence[Claim]:
+        # the item and the claimant come along for the counter: the description to find the
+        # object, the name to check the photo ID (RN46). An approval past its deadline stays here
+        # until the scheduled task expires it; ClaimPickupOut carries the deadline
+        stmt = self._for_staff(ClaimStatus.APPROVED, point_ids, staff_id).options(
+            selectinload(Claim.item), selectinload(Claim.claimant)
+        )
+        return self._session.scalars(stmt).all()
+
+    @staticmethod
+    def _for_staff(status: ClaimStatus, point_ids: set[int] | None, staff_id: int) -> Select:
+        """Claims with this status, oldest first. `point_ids` limits them to items at those points
+        (RN41), and None means every point. The staff member's own claims are left out."""
         stmt = (
             select(Claim)
             .join(Item)
-            .where(Claim.status == ClaimStatus.PENDING, Claim.claimant_id != reviewer_id)
-            .options(
-                selectinload(Claim.answers), selectinload(Claim.item).selectinload(Item.questions)
-            )
+            .where(Claim.status == status, Claim.claimant_id != staff_id)
             .order_by(Claim.id)
         )
         if point_ids is not None:
             stmt = stmt.where(Item.collection_point_id.in_(point_ids))
-        return self._session.scalars(stmt).all()
+        return stmt

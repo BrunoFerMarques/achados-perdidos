@@ -34,23 +34,37 @@ def pickup_deadline(approved_at: datetime) -> datetime:
     return approved_at + PICKUP_WINDOW
 
 
+def code_matches(code: str | None, typed: str) -> bool:
+    # bytes: compare_digest refuses str with non-ASCII characters, and the attendant types anything
+    if code is None:
+        return False
+    return secrets.compare_digest(normalize_code(typed).encode(), code.encode())
+
+
 def complete_pickup(
     status: ClaimStatus,
     *,
-    deadline: datetime,
+    code: str | None,
+    typed_code: str,
+    deadline: datetime | None,
     item_point_id: int,
     point_id: int,
     document_checked: bool,
     now: datetime,
 ) -> ClaimStatus:
-    """Checks the pickup of a claim and returns its new status. `point_id` is where the attendant
-    is validating the code; `now` comes from the caller, never from the system clock."""
+    """Checks the pickup of a claim and returns its new status. `code` and `deadline` are None
+    when the claim was never approved; `typed_code` is what the claimant showed at the counter;
+    `point_id` is where the attendant is validating it; `now` comes from the caller, never from
+    the system clock."""
+    if not code_matches(code, typed_code):
+        # first: a wrong code says nothing about the claim, not even whether it was used
+        raise InvalidPickupCode()
     if status == ClaimStatus.COMPLETED:
         raise PickupCodeAlreadyUsed()  # RN44: single use
     if status == ClaimStatus.EXPIRED:
         raise PickupCodeExpired()
-    if status != ClaimStatus.APPROVED:
-        # pending and rejected claims never had a code; a cancelled one lost it
+    if status != ClaimStatus.APPROVED or deadline is None:
+        # a cancelled claim keeps its code in the database, but the code no longer opens anything
         raise InvalidPickupCode()
     if now >= deadline:
         raise PickupCodeExpired()  # the scheduled task may not have expired the claim yet

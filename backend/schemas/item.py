@@ -67,3 +67,19 @@ class ItemTransferOut(ItemOut):
     way. The finder's ItemOut doesn't carry it (RN53)."""
 
     transfer_to_id: int | None
+
+
+class ItemPublicOut(BaseModel):
+    """What anyone sees on the public listing (RN50): no questions, no finder, no status. A field
+    that isn't here can't leak, whatever the item has."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    category_id: int
+    location_id: int
+    color_id: int
+    collection_point_id: int
+    # RN52: read from Item.public_description, never the raw description
+    public_description: str
+    found_date: date
