@@ -8,16 +8,24 @@ from domain.errors import (
     CollectionPointNotFound,
     ColorNotFound,
     ItemNotFound,
+    ItemNotInTransfer,
     LocationNotFound,
 )
-from domain.permissions import can_operate_item, can_view_custody, ensure
+from domain.permissions import (
+    can_operate_item,
+    can_transfer_items,
+    can_view_custody,
+    ensure,
+    operates_every_point,
+)
 from models import CustodyRecord, Item, ItemQuestion, User
 from repositories.unit_of_work import UnitOfWork
 
 
 class ItemService:
-    """Found items (scope §4.1). The finder comes from the token, never from the body. Every
-    date in the custody history comes from the injected clock, which RN04 will compare with."""
+    """Found items (scope §4.1) and their way between collection points (RN05). The finder comes
+    from the token, never from the body. Every date in the custody history comes from the
+    injected clock, which RN04 will compare with."""
 
     def __init__(self, uow: UnitOfWork, clock: Clock):
         self._uow = uow
@@ -76,13 +84,41 @@ class ItemService:
         ensure(can_operate_item(actor, collection_point_id, self._point_ids(actor)))
         if self._uow.collection_points.get(collection_point_id) is None:
             raise CollectionPointNotFound()
-        item = self._uow.items.get_for_update(item_id)
-        if item is None:
-            raise ItemNotFound()
+        item = self._lock_item(item_id)
         # RN02: the item moves to this point; a second receipt is an InvalidTransition (409)
         item.receive(collection_point_id, by=actor.id, at=self._clock.now())
         self._uow.commit()
         return item
+
+    def transfer(self, actor: User, item_id: int, transfer_to_id: int) -> Item:
+        # the role first, so a user neither locks the row nor learns anything about the item
+        ensure(can_transfer_items(actor))
+        item = self._lock_item(item_id)
+        # RN05, RN41: whoever sends it works where the item is now
+        ensure(can_operate_item(actor, item.collection_point_id, self._point_ids(actor)))
+        if self._uow.collection_points.get(transfer_to_id) is None:
+            raise CollectionPointNotFound()
+        # RN05: only from the shelf, and to another point; the model says no otherwise
+        item.transfer_to(transfer_to_id, by=actor.id, at=self._clock.now())
+        self._uow.commit()
+        return item
+
+    def arrive(self, actor: User, item_id: int) -> Item:
+        ensure(can_transfer_items(actor))
+        item = self._lock_item(item_id)
+        # before the permission: without a destination there is no point to check it against
+        if item.transfer_to_id is None:
+            raise ItemNotInTransfer()
+        # RN05, RN41: whoever confirms the arrival works at the destination
+        ensure(can_operate_item(actor, item.transfer_to_id, self._point_ids(actor)))
+        item.arrive(by=actor.id, at=self._clock.now())
+        self._uow.commit()
+        return item
+
+    def list_in_transfer(self, actor: User) -> Sequence[Item]:
+        ensure(can_transfer_items(actor))
+        point_ids = None if operates_every_point(actor) else self._point_ids(actor)
+        return self._uow.items.list_in_transfer(point_ids)
 
     def history(self, actor: User, item_id: int) -> Sequence[CustodyRecord]:
         # RN53: only the staff sees the history
@@ -108,6 +144,13 @@ class ItemService:
             found_from=found_from,
             found_to=found_to,
         )
+
+    def _lock_item(self, item_id: int) -> Item:
+        # locked until the commit: two operations on the same item run one after the other
+        item = self._uow.items.get_for_update(item_id)
+        if item is None:
+            raise ItemNotFound()
+        return item
 
     def _point_ids(self, actor: User) -> set[int]:
         return self._uow.collection_point_attendants.point_ids_of(actor.id)
