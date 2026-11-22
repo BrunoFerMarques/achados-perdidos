@@ -127,6 +127,24 @@ class ItemService:
             raise ItemNotFound()
         return self._uow.custody.list_by_item(item_id)
 
+    def list_public(
+        self,
+        *,
+        q: str | None,
+        category_id: int | None,
+        location_id: int | None,
+        found_from: date | None,
+        found_to: date | None,
+    ) -> Sequence[Item]:
+        # public: no ensure; read-only: no commit
+        return self._uow.items.search_public(
+            q=q,
+            category_id=category_id,
+            location_id=location_id,
+            found_from=found_from,
+            found_to=found_to,
+        )
+
     def _lock_item(self, item_id: int) -> Item:
         # locked until the commit: two operations on the same item run one after the other
         item = self._uow.items.get_for_update(item_id)

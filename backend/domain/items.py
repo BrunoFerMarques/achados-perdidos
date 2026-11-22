@@ -1,5 +1,5 @@
-"""Found items (scope §5): their statuses, where each one may go next and how many verification
-questions they take."""
+"""Found items (scope §5): their statuses, where each one may go next, how many verification
+questions they take and what the public listing shows of them."""
 
 from enum import StrEnum
 
@@ -51,3 +51,19 @@ def accepts_claims(status: ItemStatus) -> bool:
 # RN20, scope §12: every item has from 2 to 5 verification questions
 MIN_QUESTIONS = 2
 MAX_QUESTIONS = 5
+
+
+# RN50: the statuses on the public listing; the item is at a collection point or on its way
+PUBLIC_STATUSES = frozenset({ItemStatus.AVAILABLE, ItemStatus.IN_TRANSFER})
+
+
+# RN52: a document's description has personal data, so the listing shows a fixed text instead;
+# the name on the document goes into a verification question
+DOCUMENTS_CATEGORY = "Documentos"
+DOCUMENT_TEXT = "Documento de identificação"
+
+
+def public_text(category: str, description: str) -> str:
+    if category == DOCUMENTS_CATEGORY:
+        return DOCUMENT_TEXT
+    return description
