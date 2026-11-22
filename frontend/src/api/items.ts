@@ -1,5 +1,10 @@
 import { api, post } from './client'
-import type { ItemTransfer } from './types'
+import type { ItemTransfer, PublicItem } from './types'
+
+// the public listing (RN50): no token needed; only items already at a counter come back
+export const itemsApi = {
+  listPublic: () => api<PublicItem[]>('/v1/items'),
+}
 
 // the transfer between points (RN05)
 export const transfersApi = {
