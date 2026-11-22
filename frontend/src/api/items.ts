@@ -3,7 +3,8 @@ import type { ItemTransfer, PublicItem } from './types'
 
 // the public listing (RN50): no token needed; only items already at a counter come back
 export const itemsApi = {
-  listPublic: () => api<PublicItem[]>('/v1/items'),
+  // every filter is optional and goes in the query string; an empty one stays out
+  listPublic: (params: URLSearchParams) => api<PublicItem[]>(`/v1/items?${params}`),
 }
 
 // the transfer between points (RN05)
