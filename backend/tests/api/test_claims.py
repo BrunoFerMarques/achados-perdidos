@@ -165,6 +165,48 @@ def test_rn23_expected_answers_never_reach_the_claimant(client, joao, item, cloc
         assert "8F3A" not in text
 
 
+def questions_of(client, account, item_id: int):
+    return client.get(f"{URL}/items/{item_id}/questions", headers=account.headers)
+
+
+def test_claimant_gets_the_questions_without_the_answers(client, joao, item):
+    # RN23: the form shows each question in order, never the expected answer
+    response = questions_of(client, joao, item)
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"position": 1, "question": "Qual a cor da capinha?"},
+        {"position": 2, "question": "Tem algum adesivo? Qual?"},
+        {"position": 3, "question": "Últimos 4 dígitos do número de série?"},
+    ]
+
+
+def test_rn10_finder_gets_no_form_for_their_own_item(client, maria, item):
+    assert questions_of(client, maria, item).status_code == 403
+
+
+@pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
+def test_only_users_get_the_claim_form(client, signup, item, role):
+    assert questions_of(client, signup(JOAO, role), item).status_code == 403
+
+
+def test_item_that_takes_no_claim_has_no_form(client, joao, register):
+    assert questions_of(client, joao, register("reservado")).status_code == 409
+
+
+def test_form_of_an_unknown_item_is_404(client, joao):
+    assert questions_of(client, joao, 999).status_code == 404
+
+
+@pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
+def test_staff_get_403_not_404_for_the_form_of_an_unknown_item(client, signup, role):
+    # the role is checked before the item is looked up
+    response = questions_of(client, signup(JOAO, role), 999)
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Sem permissão para esta operação"}
+
+
 def test_requires_login(client, item):
     response = client.post(URL, json={"item_id": item, "answers": RIGHT})
 
@@ -181,6 +223,7 @@ def test_requires_login(client, item):
         ("POST", f"{URL}/1/reject"),
         ("GET", f"{URL}/approved"),
         ("POST", f"{URL}/1/pickup"),
+        ("GET", f"{URL}/items/1/questions"),
     ],
 )
 def test_every_claim_route_requires_login(client, method, url):
@@ -217,7 +260,6 @@ def test_unknown_item_is_404(client, joao, clock):
     [
         ("registrado", 409),
         ("disponivel", 201),
-        ("em_transferencia", 201),
         ("reservado", 409),
         ("devolvido", 409),
         ("expirado", 409),
@@ -246,6 +288,21 @@ def test_one_answer_per_question_or_422(client, joao, item, clock):
 
     assert response.status_code == 422
     assert client.get(f"{URL}/me", headers=joao.headers).json() == []
+
+
+def test_rn10_own_item_is_403_before_the_answer_count(client, maria, item, clock):
+    # the item is checked before the answers, like the form does: 403, not 422
+    response = claim(client, maria, item, ["azul", "banda queen"])
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Você não pode reivindicar um item que registrou"}
+
+
+def test_item_that_takes_no_claim_is_409_before_the_answer_count(client, joao, register, clock):
+    response = claim(client, joao, register("reservado"), ["azul", "banda queen"])
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Este item não aceita reivindicações"}
 
 
 def test_blank_answer_is_allowed_and_counts_as_wrong(client, joao, item, clock):
@@ -338,6 +395,17 @@ def test_rn12_cancelling_a_claim_frees_a_slot(client, joao, register, clock):
     assert response.status_code == 201
 
 
+def test_rn12_user_at_the_limit_still_gets_the_form(client, joao, register, clock):
+    # RN12 is left to the claim itself: the user may cancel another one before sending it
+    for _ in range(3):
+        claim(client, joao, register())
+
+    response = questions_of(client, joao, register())
+
+    assert response.status_code == 200
+    assert [q["position"] for q in response.json()] == [1, 2, 3]
+
+
 # --- RN15 and RN16: blocking after failed claims ---
 
 
@@ -352,6 +420,22 @@ def test_rn15_three_failures_block_claiming(client, joao, register, clock):
     response = claim(client, joao, register())
 
     assert response.status_code == 403
+
+
+def test_rn15_blocked_user_gets_no_claim_form(client, joao, register, clock):
+    fail_three_times(client, joao, register)
+
+    assert questions_of(client, joao, register()).status_code == 403
+
+
+@pytest.mark.parametrize("answers", [RIGHT, WRONG], ids=["pending", "rejected"])
+def test_rn11_no_form_after_claiming_the_same_item(client, joao, item, answers, clock):
+    claim(client, joao, item, answers)
+
+    response = questions_of(client, joao, item)
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Você já reivindicou este item"}
 
 
 def test_rn15_block_ends_after_7_days(client, joao, register, clock):
@@ -661,14 +745,6 @@ def test_approved_claim_cannot_be_rejected(client, joao, attendant, item, clock)
 
     assert response.status_code == 409
     assert item_status(item) == "reservado"
-
-
-def test_rn13_item_in_transfer_cannot_be_approved_yet(client, joao, attendant, register, clock):
-    pending = claim(client, joao, register("em_transferencia")).json()
-
-    response = client.post(f"{URL}/{pending['id']}/approve", headers=attendant.headers)
-
-    assert response.status_code == 409
 
 
 def test_rn41_attendant_from_another_point_gets_403(client, joao, other_attendant, item, clock):

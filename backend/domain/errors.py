@@ -146,3 +146,11 @@ class LocationNotFound(NotFoundError):
 
 class ColorNotFound(NotFoundError):
     message = "Cor não encontrada"
+
+
+class ItemAlreadyAtThisPoint(InvalidRequestError):
+    message = "O item já está neste ponto de coleta"
+
+
+class ItemNotInTransfer(ConflictError):
+    message = "O item não está em transferência"

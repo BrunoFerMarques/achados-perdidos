@@ -4,13 +4,20 @@ from dependencies import CollectionPointServiceDep, CurrentUserDep
 from schemas.collection_point import AttendantLink, CollectionPointCreate, CollectionPointOut
 from schemas.user import UserOut
 
-# listing is public, like categories; everything else is admin only, checked by the service (403)
+# listing is public, like categories; /mine needs a login; everything else is admin only, checked
+# by the service (403)
 router = APIRouter(prefix="/v1/collection-points", tags=["collection points"])
 
 
 @router.get("", response_model=list[CollectionPointOut])
 def list_collection_points(points: CollectionPointServiceDep):
     return points.list_all()
+
+
+@router.get("/mine", response_model=list[CollectionPointOut])
+def list_my_collection_points(current_user: CurrentUserDep, points: CollectionPointServiceDep):
+    # where the logged-in attendant works (every point for an admin, none for a user)
+    return points.list_mine(current_user)
 
 
 @router.post("", status_code=201, response_model=CollectionPointOut)

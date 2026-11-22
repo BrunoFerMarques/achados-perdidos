@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 
 export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
+  // where RequireAuth sent the user from, or the home page
+  const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
 
-  if (user) return <Navigate to="/" replace />
+  if (user) return <Navigate to={from} replace />
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -19,7 +21,7 @@ export function LoginPage() {
     setSending(true)
     try {
       await login(email, password)
-      navigate('/')
+      navigate(from, { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) setError('E-mail ou senha incorretos.')
       else if (err instanceof ApiError) setError(err.message)

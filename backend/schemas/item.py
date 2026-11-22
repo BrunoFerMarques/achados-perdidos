@@ -57,6 +57,18 @@ class ItemOut(BaseModel):
     questions: list[QuestionOut]
 
 
+class TransferIn(BaseModel):
+    # RN05: the destination; the origin is wherever the item is now
+    transfer_to_id: int
+
+
+class ItemTransferOut(ItemOut):
+    """For the staff following an item between points (RN05): where it is going, while on its
+    way. The finder's ItemOut doesn't carry it (RN53)."""
+
+    transfer_to_id: int | None
+
+
 class ItemPublicOut(BaseModel):
     """What anyone sees on the public listing (RN50): no questions, no finder, no status. A field
     that isn't here can't leak, whatever the item has."""

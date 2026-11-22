@@ -82,6 +82,11 @@ def can_view_custody(actor: Actor) -> bool:
     return actor.role in (Role.ATENDENTE, Role.ADMIN)
 
 
+def can_transfer_items(actor: Actor) -> bool:
+    # RN05: the staff sends items between points and follows them; RN41 then checks which ones
+    return actor.role in (Role.ATENDENTE, Role.ADMIN)
+
+
 def can_manage_collection_points(actor: Actor) -> bool:
     # RN40: only an admin registers collection points and links attendants
     return actor.role == Role.ADMIN
