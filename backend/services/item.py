@@ -13,6 +13,7 @@ from domain.errors import (
 )
 from domain.permissions import (
     can_operate_item,
+    can_receive_items,
     can_transfer_items,
     can_view_custody,
     ensure,
@@ -79,7 +80,9 @@ class ItemService:
         self._uow.commit()
         return item
 
-    def receive(self, actor: User, item_id: int, collection_point_id: int) -> Item:
+    def receive(
+        self, actor: User, item_id: int, collection_point_id: int, description: str | None = None
+    ) -> Item:
         # RN41: the attendant works at the counter where the object is handed in; an admin anywhere
         ensure(can_operate_item(actor, collection_point_id, self._point_ids(actor)))
         if self._uow.collection_points.get(collection_point_id) is None:
@@ -87,8 +90,16 @@ class ItemService:
         item = self._lock_item(item_id)
         # RN02: the item moves to this point; a second receipt is an InvalidTransition (409)
         item.receive(collection_point_id, by=actor.id, at=self._clock.now())
+        # RN51: after the arrow, so a refused receipt leaves the description as it was
+        if description is not None:
+            item.description = description
         self._uow.commit()
         return item
+
+    def list_registered(self, actor: User) -> Sequence[Item]:
+        # RN02: what is waiting for a counter, for the whole staff
+        ensure(can_receive_items(actor))
+        return self._uow.items.list_registered()
 
     def transfer(self, actor: User, item_id: int, transfer_to_id: int) -> Item:
         # the role first, so a user neither locks the row nor learns anything about the item

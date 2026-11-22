@@ -30,6 +30,8 @@ class ItemCreate(BaseModel):
 class ReceiveIn(BaseModel):
     # the counter where the object is handed in (RN02), not the point the finder chose
     collection_point_id: int
+    # RN51: the attendant may rewrite the public description; left out, it stays as it was
+    description: Text | None = None
 
 
 class QuestionOut(BaseModel):
