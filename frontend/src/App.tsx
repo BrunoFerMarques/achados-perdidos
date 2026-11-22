@@ -13,7 +13,7 @@ import { TransfersPage } from './pages/TransfersPage'
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/itens/novo"
