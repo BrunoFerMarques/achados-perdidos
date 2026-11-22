@@ -20,6 +20,7 @@ from services.collection_point import CollectionPointService
 from services.color import ColorService
 from services.item import ItemService
 from services.location import LocationService
+from services.lost_report import LostReportService
 from services.token import TokenService
 from services.user import UserService
 
@@ -108,6 +109,13 @@ def get_auth_service(uow: UnitOfWorkDep, tokens: TokenServiceDep) -> AuthService
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def get_lost_report_service(uow: UnitOfWorkDep) -> LostReportService:
+    return LostReportService(uow)
+
+
+LostReportServiceDep = Annotated[LostReportService, Depends(get_lost_report_service)]
 
 
 def get_current_user(

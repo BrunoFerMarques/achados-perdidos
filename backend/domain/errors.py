@@ -75,6 +75,10 @@ class UserIsNotAttendant(ConflictError):
     message = "O usuário não é atendente"
 
 
+class LostReportNotFound(NotFoundError):
+    message = "Relato de perda não encontrado"
+
+
 class InvalidPickupCode(InvalidRequestError):
     # 422, not 404: the claim exists, the code typed for it doesn't fit
     message = "Código de retirada inválido"

@@ -19,6 +19,7 @@ from repositories.color import ColorRepository
 from repositories.custody import CustodyRepository
 from repositories.item import ItemRepository
 from repositories.location import LocationRepository
+from repositories.lost_report import LostReportRepository
 from repositories.user import UserRepository
 
 # unique constraints whose violation is a business error, not a bug
@@ -45,6 +46,7 @@ class UnitOfWork:
         self.collection_points = CollectionPointRepository(session)
         self.items = ItemRepository(session)
         self.collection_point_attendants = CollectionPointAttendantRepository(session)
+        self.lost_reports = LostReportRepository(session)
         self.claims = ClaimRepository(session)
         self.custody = CustodyRepository(session)
 

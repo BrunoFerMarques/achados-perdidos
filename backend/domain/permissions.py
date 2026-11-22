@@ -90,3 +90,19 @@ def can_transfer_items(actor: Actor) -> bool:
 def can_manage_collection_points(actor: Actor) -> bool:
     # RN40: only an admin registers collection points and links attendants
     return actor.role == Role.ADMIN
+
+
+def can_create_lost_report(actor: Actor) -> bool:
+    # scope §11: only regular users report lost items
+    return actor.role == Role.USUARIO
+
+
+def can_list_lost_reports(actor: Actor) -> bool:
+    # scope §11: only regular users have reports to list
+    return actor.role == Role.USUARIO
+
+
+def can_access_lost_report(actor: Actor, owner_id: int) -> bool:
+    # design decision: the scope is silent on who may view or close a report,
+    # so only the owner can
+    return actor.role == Role.USUARIO and actor.id == owner_id

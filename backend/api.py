@@ -23,6 +23,7 @@ from routers import (
     colors,
     items,
     locations,
+    lost_reports,
     users,
 )
 
@@ -43,6 +44,7 @@ app.include_router(categories.router)
 app.include_router(locations.router)
 app.include_router(colors.router)
 app.include_router(collection_points.router)
+app.include_router(lost_reports.router)
 app.include_router(items.router)
 app.include_router(claims.router)
 

@@ -7,6 +7,7 @@ from models.color import Color
 from models.custody import CustodyRecord
 from models.item import Item, ItemQuestion
 from models.location import Location
+from models.lost_report import LostReport
 from models.user import User
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "Item",
     "ItemQuestion",
     "Location",
+    "LostReport",
     "User",
 ]
