@@ -1,4 +1,4 @@
-# RN05: the item's way between collection points, in the model and in the database
+# transferência do item entre pontos, no model e no banco
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -26,7 +26,7 @@ def uow(db):
 
 @pytest.fixture
 def ana(db):
-    """The attendant who moves the items."""
+    """A atendente que move os itens."""
     user = User(name="Ana Lima", email="ana@example.com", password_hash="hash")
     db.add(user)
     db.flush()
@@ -51,13 +51,13 @@ def destination(db):
 
 
 def first_id(db, model) -> int:
-    # categories, locations and colors are seeded by the migrations
+    # categorias, locais e cores vêm das migrações
     return db.scalar(select(model.id).order_by(model.id).limit(1))
 
 
 @pytest.fixture
 def new_item(db, origin):
-    """new_item(status="disponivel", point=origin) -> Item, straight into that status."""
+    """new_item(status="disponivel", point=origin) -> Item, direto nesse status."""
 
     def new_item(status: ItemStatus = ItemStatus.AVAILABLE, point=None) -> Item:
         item = Item(
@@ -86,13 +86,13 @@ def item(new_item):
 
 
 def put_in(item: Item, status: ItemStatus, destination: CollectionPoint) -> None:
-    # straight to the status; on its way the item carries a destination, as the database requires
+    # direto no status (a caminho, o item precisa de destino por causa da constraint)
     item.status = status
     if status == ItemStatus.IN_TRANSFER:
         item.transfer_to_id = destination.id
 
 
-# --- the model ---
+# --- o model ---
 
 
 def test_rn06_sending_and_arriving_write_one_line_at_each_end(db, item, ana, origin, destination):
@@ -144,8 +144,8 @@ def test_item_not_on_its_way_does_not_arrive(item, ana, origin):
 
 @pytest.mark.parametrize("status", [ItemStatus.RESERVED, ItemStatus.IN_TRANSFER])
 def test_rn02_only_a_registered_item_is_received(new_item, ana, destination, status):
-    # the diagram's arrows RESERVADO -> DISPONIVEL and EM_TRANSFERENCIA -> DISPONIVEL belong to
-    # the claim and to arrive(), not to a receipt at any counter
+    # no diagrama, reservado e em transferência também voltam pra disponível, mas pela
+    # reivindicação e pelo arrive(), não por um recebimento
     item = new_item()
     put_in(item, status, destination)
 
@@ -182,7 +182,7 @@ def test_destination_is_never_the_point_it_left(db, item, origin):
     db.rollback()
 
 
-# --- the item's row lock: a transfer, an arrival, a receipt and an approval take turns ---
+# --- trava de linha do item (transferência, chegada, recebimento e aprovação em fila) ---
 
 
 def test_item_get_for_update_selects_the_row_for_update(uow, item, sent_sql):
@@ -192,9 +192,9 @@ def test_item_get_for_update_selects_the_row_for_update(uow, item, sent_sql):
 
 
 def test_rn05_item_get_for_update_reloads_a_row_changed_by_another_transaction(db, uow, item):
-    # a transfer that waited for an approval must see "reservado", not the shelf it read
-    # (RN05: a reserved item is not sent)
-    # read from the database before the change below; a plain SELECT would keep this stale copy
+    # a transferência que esperou uma aprovação tem que ver "reservado" (item reservado não é
+    # enviado), não a prateleira que tinha lido
+    # lê do banco antes da mudança, senão um SELECT comum guardaria a cópia velha
     db.refresh(item)
     assert item.status == ItemStatus.AVAILABLE
     db.execute(text("UPDATE items SET status = 'reservado' WHERE id = :id"), {"id": item.id})
@@ -205,7 +205,7 @@ def test_rn05_item_get_for_update_reloads_a_row_changed_by_another_transaction(d
     assert locked.status == ItemStatus.RESERVED
 
 
-# --- the list of items on their way ---
+# --- a lista dos itens a caminho ---
 
 
 def test_list_in_transfer_keeps_the_items_leaving_or_heading_to_the_points(
@@ -218,7 +218,7 @@ def test_list_in_transfer_keeps_the_items_leaving_or_heading_to_the_points(
     arriving.transfer_to(origin.id, by=ana.id, at=NOW)
     elsewhere = new_item(point=third)
     elsewhere.transfer_to(destination.id, by=ana.id, at=NOW)
-    new_item()  # on the shelf at the origin: not on its way
+    new_item()  # na prateleira da origem: não está a caminho
     db.flush()
 
     assert [i.id for i in uow.items.list_in_transfer({origin.id})] == [leaving.id, arriving.id]

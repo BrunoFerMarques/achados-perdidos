@@ -21,7 +21,7 @@ def test_commit_turns_a_known_constraint_into_a_domain_error(db):
 
 
 def test_commit_keeps_unexpected_integrity_errors(db):
-    # a blank name is blocked by the API, so reaching the database means a bug
+    # a API barra nome em branco, então se chegar no banco é bug
     uow = UnitOfWork(db)
     uow.users.add(new_user(name="   "))
 

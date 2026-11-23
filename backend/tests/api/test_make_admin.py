@@ -1,4 +1,4 @@
-# no route makes anyone admin on its own, so the first admin comes from make_admin.py
+# nenhuma rota faz alguém admin sozinha, então o primeiro admin sai do make_admin.py
 import make_admin
 
 MARIA = {"name": "Maria Silva", "email": "maria@example.com", "password": "senha-forte"}
@@ -11,7 +11,7 @@ def test_script_promotes_an_existing_user_to_admin(client, signup, capsys):
 
     assert exit_code == 0
     assert "maria@example.com agora é admin" in capsys.readouterr().out
-    # the same token now reaches the admin routes
+    # o mesmo token agora chega às rotas de admin
     assert client.get("/v1/users", headers=maria.headers).status_code == 200
 
 

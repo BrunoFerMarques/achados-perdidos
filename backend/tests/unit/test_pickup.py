@@ -1,4 +1,4 @@
-# RN44 to RN46 (docs/diagrama.md §9): the pickup code
+# código de retirada
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -28,7 +28,7 @@ CODE = "AB12CD"
 
 
 def pickup(status: ClaimStatus = ClaimStatus.APPROVED, **overrides) -> ClaimStatus:
-    """A valid pickup, unless the test overrides something."""
+    """Uma retirada válida, a menos que o teste mude alguma coisa."""
     args = {
         "code": CODE,
         "typed_code": CODE,
@@ -42,13 +42,12 @@ def pickup(status: ClaimStatus = ClaimStatus.APPROVED, **overrides) -> ClaimStat
 
 
 def test_code_has_6_uppercase_letters_or_digits():
-    # RN44
     for _ in range(100):
         assert re.fullmatch(r"[A-Z0-9]{6}", generate_code())
 
 
 def test_codes_do_not_repeat():
-    # 36^6 possible codes: a repeat in 100 would mean the generator is broken
+    # 36^6 códigos possíveis: uma repetição em 100 quer dizer que o gerador está quebrado
     assert len({generate_code() for _ in range(100)}) == 100
 
 
@@ -58,7 +57,6 @@ def test_typed_code_ignores_case_and_surrounding_spaces(typed):
 
 
 def test_code_is_valid_for_5_days_after_approval():
-    # RN44
     assert pickup_deadline(APPROVED_AT) == DEADLINE
 
 
@@ -73,7 +71,7 @@ def test_typed_code_matches_ignoring_case_and_surrounding_spaces(typed):
 
 @pytest.mark.parametrize("typed", ["AB12CE", "AB12C", "", "ÁB12CD"])
 def test_another_code_does_not_match(typed):
-    # "Á" too: a non-ASCII character is just a wrong code, not a crash
+    # "Á" também: caractere não ASCII é só código errado, não pode quebrar
     assert not code_matches(CODE, typed)
 
 
@@ -82,7 +80,6 @@ def test_claim_without_a_code_matches_nothing():
 
 
 def test_wrong_code_is_refused():
-    # RN44
     with pytest.raises(InvalidPickupCode):
         pickup(typed_code="ZZZZZZ")
 
@@ -93,7 +90,7 @@ def test_wrong_code_does_not_tell_whether_the_claim_was_used():
 
 
 def test_code_is_single_use():
-    # RN44: the first pickup completes the claim, so the same code can't be used again
+    # a primeira retirada conclui a reivindicação, então o código não serve de novo
     status = pickup()
 
     with pytest.raises(PickupCodeAlreadyUsed):
@@ -105,7 +102,7 @@ def test_code_still_works_just_before_the_deadline():
 
 
 def test_code_expires_at_the_deadline():
-    # RN44: even if the scheduled task hasn't marked the claim as expired yet
+    # mesmo que a tarefa agendada ainda não tenha marcado como expirada
     with pytest.raises(PickupCodeExpired):
         pickup(now=DEADLINE)
 
@@ -129,12 +126,10 @@ def test_claim_that_was_never_approved_has_no_code_nor_deadline():
 
 
 def test_code_is_only_accepted_at_the_point_where_the_item_is():
-    # RN45
     with pytest.raises(ItemNotAtThisPoint):
         pickup(point_id=OTHER_POINT)
 
 
 def test_pickup_needs_the_photo_id_checked():
-    # RN46
     with pytest.raises(DocumentNotChecked):
         pickup(document_checked=False)

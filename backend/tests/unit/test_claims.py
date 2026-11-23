@@ -1,4 +1,4 @@
-# scope §6 (docs/diagrama.md): claim lifecycle
+# ciclo de vida da reivindicação
 from itertools import product
 
 import pytest
@@ -13,12 +13,12 @@ from domain.claims import (
 from domain.errors import InvalidTransition
 
 ALLOWED = [
-    (ClaimStatus.PENDING, ClaimStatus.APPROVED),  # attendant approves
-    (ClaimStatus.PENDING, ClaimStatus.REJECTED),  # attendant rejects, or item returned to another
-    (ClaimStatus.PENDING, ClaimStatus.CANCELLED),  # claimant cancels
-    (ClaimStatus.APPROVED, ClaimStatus.COMPLETED),  # pickup validated
-    (ClaimStatus.APPROVED, ClaimStatus.EXPIRED),  # pickup deadline passed
-    (ClaimStatus.APPROVED, ClaimStatus.CANCELLED),  # claimant cancels
+    (ClaimStatus.PENDING, ClaimStatus.APPROVED),  # atendente aprova
+    (ClaimStatus.PENDING, ClaimStatus.REJECTED),  # atendente rejeita, ou item devolvido a outro
+    (ClaimStatus.PENDING, ClaimStatus.CANCELLED),  # reivindicante cancela
+    (ClaimStatus.APPROVED, ClaimStatus.COMPLETED),  # retirada validada
+    (ClaimStatus.APPROVED, ClaimStatus.EXPIRED),  # prazo de retirada vencido
+    (ClaimStatus.APPROVED, ClaimStatus.CANCELLED),  # reivindicante cancela
 ]
 NOT_ALLOWED = [pair for pair in product(ClaimStatus, repeat=2) if pair not in ALLOWED]
 
@@ -54,7 +54,7 @@ def test_claim_below_the_minimum_score_starts_rejected():
     ],
 )
 def test_only_pending_and_approved_claims_are_active(status, active):
-    # RN11 and RN12 limit active claims
+    # os limites contam só as ativas
     assert (status in ACTIVE_STATUSES) is active
 
 

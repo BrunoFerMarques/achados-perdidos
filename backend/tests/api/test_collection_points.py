@@ -198,7 +198,7 @@ def test_deleting_the_attendant_removes_the_link(client, admin, carla, create_po
     assert client.get(attendants_url(point["id"]), headers=admin.headers).json() == []
 
 
-# --- the points of whoever is logged in (RN41), for the counter screens ---
+# --- pontos de quem está logado (usados nas telas do balcão) ---
 
 
 def test_attendant_sees_only_the_points_they_work_at(client, carla, create_point, link):
@@ -217,7 +217,7 @@ def test_attendant_sees_only_the_points_they_work_at(client, carla, create_point
 def test_attendant_does_not_see_the_links_of_another_attendant(
     client, signup, carla, create_point, link
 ):
-    # the other attendant shares the library and also works at the restaurant: one row, only Carla's
+    # a outra atendente também está na biblioteca e no restaurante, mas só a linha da Carla volta
     other = signup(MARIA, Role.ATENDENTE)
     library = create_point("Biblioteca")
     restaurant = create_point("Restaurante")
@@ -247,7 +247,7 @@ def test_user_works_at_no_point(client, maria, create_point):
 
 
 def test_demoted_attendant_works_at_no_point(client, admin, carla, create_point, link):
-    # the link stays in the table after the demotion, but a user operates no counter (RN41)
+    # o vínculo fica na tabela depois do rebaixamento, mas usuário não opera balcão
     link(create_point("Biblioteca")["id"], carla.id)
     client.patch(f"/v1/users/{carla.id}/role", json={"role": "usuario"}, headers=admin.headers)
 

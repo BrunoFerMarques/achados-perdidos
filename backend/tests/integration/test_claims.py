@@ -1,5 +1,5 @@
-# Claims in the database (scope §6): the indexes behind RN11 and RN13, the Claim model and the
-# row locks that keep two requests at once from racing past the service checks
+# reivindicação no banco: índices únicos, model Claim e as travas de linha que seguram dois
+# pedidos simultâneos
 import re
 from datetime import UTC, date, datetime, timedelta
 
@@ -34,30 +34,30 @@ def uow(db):
 
 @pytest.fixture
 def maria(db):
-    """Finds the items."""
+    """Acha os itens."""
     return add_user(db, "Maria Silva", "maria@example.com")
 
 
 @pytest.fixture
 def joao(db):
-    """Claims them."""
+    """Reivindica os itens."""
     return add_user(db, "João Souza", "joao@example.com")
 
 
 @pytest.fixture
 def carlos(db):
-    """Claims them too."""
+    """Também reivindica."""
     return add_user(db, "Carlos Reis", "carlos@example.com")
 
 
 def first_id(db, model) -> int:
-    # categories, locations and colors are seeded by the migrations
+    # categorias, locais e cores vêm das migrações
     return db.scalar(select(model.id).order_by(model.id).limit(1))
 
 
 @pytest.fixture
 def new_item(db, maria):
-    """new_item(status="disponivel") -> Item: Maria's item at a new collection point."""
+    """new_item(status="disponivel") -> Item: um item da Maria num ponto de coleta novo."""
     point = CollectionPoint(name="Biblioteca")
     db.add(point)
     db.flush()
@@ -93,17 +93,17 @@ def item(new_item):
 
 
 def claim_in(item: Item, claimant: User, status: ClaimStatus) -> Claim:
-    # straight to the status, as the transitions (or a scheduled task) would leave it
+    # direto no status, como as transições (ou uma tarefa agendada) o deixariam
     return Claim(item_id=item.id, claimant_id=claimant.id, status=status, score=1.0)
 
 
 def reload(db, claim: Claim) -> Claim:
-    # expire what is loaded, so every attribute read below hits the database
+    # expira o que está carregado, para cada atributo lido abaixo ir ao banco
     db.expire_all()
     return claim
 
 
-# --- RN11: claims_claimant_item_key becomes ItemAlreadyClaimed ---
+# --- índice de uma reivindicação por usuário e item (vira ItemAlreadyClaimed) ---
 
 
 @pytest.mark.parametrize(
@@ -112,7 +112,7 @@ def reload(db, claim: Claim) -> Claim:
 def test_rn11_second_claim_of_the_same_user_on_an_item_is_item_already_claimed(
     uow, item, joao, earlier
 ):
-    # the service checks it first; the index catches two requests that passed the check together
+    # o service checa antes; o índice pega dois pedidos que passaram juntos pela checagem
     uow.claims.add(claim_in(item, joao, earlier))
     uow.commit()
 
@@ -142,16 +142,16 @@ def test_rn11_other_users_claim_the_same_item(uow, item, joao, carlos, maria):
     uow.claims.add(claim_in(item, carlos, ClaimStatus.PENDING))
     uow.commit()
 
-    # oldest first, the order the attendant reviews them in
+    # das mais antigas para as mais novas, na ordem em que o atendente analisa
     pending = uow.claims.list_pending(None, staff_id=maria.id)
     assert [c.claimant_id for c in pending] == [joao.id, carlos.id]
 
 
-# --- RN13: claims_approved_item_key becomes ItemNotAvailable ---
+# --- índice de uma aprovada por item (vira ItemNotAvailable) ---
 
 
 def test_rn13_second_approved_claim_on_an_item_is_item_not_available(uow, item, joao, carlos):
-    # two attendants approving two claims at once: both saw the item on the shelf
+    # dois atendentes aprovando duas reivindicações juntos: os dois viram o item na prateleira
     first = claim_in(item, joao, ClaimStatus.PENDING)
     second = claim_in(item, carlos, ClaimStatus.PENDING)
     uow.claims.add(first)
@@ -179,7 +179,7 @@ def test_rn13_only_an_approved_claim_keeps_another_from_being_approved(
     assert [c.status for c in uow.claims.list_by_claimant(carlos.id)] == [ClaimStatus.APPROVED]
 
 
-# --- RN12: what counts as an active claim ---
+# --- o que conta como reivindicação ativa ---
 
 
 @pytest.mark.parametrize(
@@ -203,7 +203,7 @@ def test_rn12_only_pending_and_approved_claims_are_counted_as_active(
     assert len(uow.claims.lock_active_by_claimant(joao.id)) == active
 
 
-# --- the Claim model ---
+# --- o model Claim ---
 
 
 def test_submit_saves_each_answer_at_its_questions_position(db, uow, item, joao):
@@ -233,8 +233,7 @@ def test_submit_that_passes_starts_pending_with_no_rejection(db, uow, item, joao
 
 
 def test_rn15_submit_below_the_minimum_saves_a_failure_at_the_given_time(db, uow, item, joao):
-    # the time comes from the injected clock, not from the database: blocking.py compares it
-    # with clock.now()
+    # a hora vem do relógio injetável, não do banco, porque o blocking.py compara com clock.now()
     claim = Claim.submit(item, joao.id, WRONG, 0.0, at=NOW)
     uow.claims.add(claim)
     uow.commit()
@@ -264,7 +263,7 @@ def test_rn13_approve_saves_the_code_and_time_and_reserves_the_item(db, uow, ite
         NOW,
         "AB12CD",
     )
-    assert saved.pickup_deadline == NOW + timedelta(days=5)  # RN44
+    assert saved.pickup_deadline == NOW + timedelta(days=5)
     assert saved.item.status == ItemStatus.RESERVED
 
 
@@ -285,7 +284,7 @@ def test_rn15_attendant_rejection_saves_a_failure_and_leaves_the_item(db, uow, i
 
 
 def test_approving_a_rejected_claim_raises_and_leaves_the_item_on_the_shelf(uow, item, joao, maria):
-    # RN01: rejected is final
+    # rejeitada é final
     claim = Claim.submit(item, joao.id, WRONG, 0.0, at=NOW)
     uow.claims.add(claim)
     uow.commit()
@@ -298,7 +297,7 @@ def test_approving_a_rejected_claim_raises_and_leaves_the_item_on_the_shelf(uow,
 
 
 def test_completed_claim_cannot_be_cancelled(uow, new_item, joao):
-    # the item was picked up; cancelling must not put it back on the shelf
+    # o item foi retirado; cancelar não pode devolvê-lo à prateleira
     item = new_item(ItemStatus.RETURNED)
     claim = claim_in(item, joao, ClaimStatus.COMPLETED)
     uow.claims.add(claim)
@@ -327,14 +326,14 @@ def test_rn06_pick_up_completes_the_claim_and_writes_devolucao(db, uow, item, jo
 
     assert saved.status == ClaimStatus.COMPLETED
     assert saved.item.status == ItemStatus.RETURNED
-    # RN06: the approval wrote the reservation, the pickup writes the return after it
+    # a aprovação gravou a reserva, e a retirada grava a devolução depois
     assert [(r.event, r.collection_point_id, r.actor_id, r.at) for r in saved.item.history] == [
         (CustodyEvent.RESERVATION, point_id, maria.id, NOW),
         (CustodyEvent.RETURN, point_id, maria.id, NOW + timedelta(days=1)),
     ]
 
 
-# --- row locks (RN11, RN12, RN15 counted under the user's lock; cancel vs. approve or pickup) ---
+# --- travas de linha (usuário ao criar; reivindicação ao aprovar, cancelar e retirar) ---
 
 
 def test_user_lock_selects_the_row_for_update(uow, joao, sent_sql):
@@ -344,7 +343,7 @@ def test_user_lock_selects_the_row_for_update(uow, joao, sent_sql):
 
 
 def test_user_lock_reloads_a_row_changed_by_another_transaction(db, uow, joao):
-    # read from the database before the change below; a plain SELECT would keep this stale copy
+    # lê do banco antes da mudança, senão um SELECT comum guardaria a cópia velha
     db.refresh(joao)
     assert joao.unblocked_at is None
     db.execute(
@@ -353,7 +352,7 @@ def test_user_lock_reloads_a_row_changed_by_another_transaction(db, uow, joao):
 
     locked = uow.users.lock(joao.id)
 
-    # the same object, now with what the database holds; the block check reads it right after
+    # o mesmo objeto, agora com o que o banco tem; a checagem do bloqueio o lê logo depois
     assert locked is joao
     assert locked.unblocked_at == NOW
 
@@ -373,11 +372,11 @@ def test_claim_get_for_update_selects_the_row_for_update(uow, item, joao, sent_s
 
 
 def test_claim_get_for_update_reloads_a_row_changed_by_another_transaction(db, uow, item, joao):
-    # an approval that waited for a cancellation must see "cancelada", not the pending it read
+    # a aprovação que esperou o cancelamento tem que ver "cancelada", não o pendente que leu
     claim = claim_in(item, joao, ClaimStatus.PENDING)
     uow.claims.add(claim)
     uow.commit()
-    # read from the database before the change below; a plain SELECT would keep this stale copy
+    # lê do banco antes da mudança, senão um SELECT comum guardaria a cópia velha
     db.refresh(claim)
     assert claim.status == ClaimStatus.PENDING
     db.execute(text("UPDATE claims SET status = 'cancelada' WHERE id = :id"), {"id": claim.id})
@@ -389,7 +388,7 @@ def test_claim_get_for_update_reloads_a_row_changed_by_another_transaction(db, u
 
 
 def test_active_claims_of_a_deleted_account_are_selected_for_update(uow, item, joao, sent_sql):
-    # an approval racing the deletion waits for it, instead of reserving the item for nobody
+    # aprovação rodando junto com a exclusão espera, em vez de reservar o item pra ninguém
     uow.claims.add(claim_in(item, joao, ClaimStatus.PENDING))
     uow.commit()
 
@@ -403,7 +402,7 @@ def test_claim_get_for_update_of_an_unknown_claim_is_none(uow):
 
 
 def test_rn14_pending_claims_of_an_item_are_selected_for_update(uow, item, joao, sent_sql):
-    # a cancellation racing the pickup waits for it, instead of being overwritten by the rejection
+    # cancelamento rodando junto com a retirada espera, em vez de ser sobrescrito pela rejeição
     uow.claims.add(claim_in(item, joao, ClaimStatus.PENDING))
     uow.commit()
 
@@ -432,7 +431,7 @@ def test_rn14_only_the_pending_claims_of_that_item_are_locked(
     uow.claims.add(first)
     uow.claims.add(second)
     uow.claims.add(claim_in(item, carlos, status))
-    # pending, but on another item: the pickup of `item` leaves it alone
+    # pendente, mas em outro item: a retirada de `item` não mexe nela
     uow.claims.add(claim_in(other_item, carlos, ClaimStatus.PENDING))
     uow.commit()
 
@@ -441,11 +440,11 @@ def test_rn14_only_the_pending_claims_of_that_item_are_locked(
     assert sorted(c.id for c in locked) == [first.id, second.id]
 
 
-# --- the review locks the item too (RN05 vs. RN13) ---
+# --- a análise também trava o item ---
 
 
 class StoppedClock:
-    """The service's clock, stopped at NOW."""
+    """O relógio do service, parado em NOW."""
 
     def now(self) -> datetime:
         return NOW
@@ -453,7 +452,7 @@ class StoppedClock:
 
 @pytest.fixture
 def admin(db):
-    """Reviews claims at any point, so no attendant has to be linked to the item's point."""
+    """Analisa em qualquer ponto, sem precisar de atendente vinculado ao ponto do item."""
     user = add_user(db, "Admin", "admin@example.com")
     user.role = Role.ADMIN
     db.flush()
@@ -461,7 +460,7 @@ def admin(db):
 
 
 def locked_tables(statements: list[str]) -> list[str]:
-    # the table each SELECT ... FOR UPDATE reads, in the order they were sent
+    # a tabela que cada SELECT ... FOR UPDATE lê, na ordem em que foram enviados
     return [
         re.search(r"\bFROM (\w+)", statement).group(1)
         for statement in statements
@@ -470,8 +469,8 @@ def locked_tables(statements: list[str]) -> list[str]:
 
 
 def test_approval_locks_the_claim_and_then_its_item(uow, item, joao, admin, sent_sql):
-    # a transfer, an arrival or a receipt of the same item waits for the approval, or the
-    # approval for them; always claim first, item second
+    # envio, chegada ou recebimento do mesmo item espera a aprovação, ou o contrário. A ordem
+    # é sempre reivindicação primeiro e item depois
     claim = claim_in(item, joao, ClaimStatus.PENDING)
     uow.claims.add(claim)
     uow.commit()
@@ -485,14 +484,14 @@ def test_approval_locks_the_claim_and_then_its_item(uow, item, joao, admin, sent
 def test_rn13_approval_that_waited_for_a_transfer_sees_the_item_on_its_way(
     db, uow, item, joao, admin
 ):
-    # RN05: the transfer committed while the approval waited for the lock; reserving the item
-    # from the copy loaded before the wait would take it off a shelf it already left
+    # a transferência fez commit enquanto a aprovação esperava a trava. Reservar com a cópia
+    # antiga tiraria o item de uma prateleira que ele já deixou
     claim = claim_in(item, joao, ClaimStatus.PENDING)
     uow.claims.add(claim)
     destination = CollectionPoint(name="Restaurante")
     db.add(destination)
     uow.commit()
-    # read from the database before the change below; a plain SELECT would keep this stale copy
+    # lê do banco antes da mudança, senão um SELECT comum guardaria a cópia velha
     db.refresh(item)
     assert item.status == ItemStatus.AVAILABLE
     db.execute(
