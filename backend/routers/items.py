@@ -55,19 +55,19 @@ def receive_item(
 def transfer_item(
     item_id: int, payload: TransferIn, current_user: CurrentUserDep, items: ItemServiceDep
 ):
-    # RN05: the origin's attendant sends it; it stays in transfer until the destination confirms
+    # o atendente da origem envia, e o item fica em transferência até o destino confirmar
     return items.transfer(current_user, item_id, payload.transfer_to_id)
 
 
 @router.post("/{item_id}/arrive", response_model=ItemTransferOut)
 def arrive_item(item_id: int, current_user: CurrentUserDep, items: ItemServiceDep):
-    # RN05: the destination's attendant confirms it reached the shelf
+    # o atendente do destino confirma que o item chegou
     return items.arrive(current_user, item_id)
 
 
 @router.get("/transfers", response_model=list[ItemTransferOut])
 def list_items_in_transfer(current_user: CurrentUserDep, items: ItemServiceDep):
-    # what is leaving or heading to the actor's points
+    # itens saindo ou chegando nos pontos de quem pediu
     return items.list_in_transfer(current_user)
 
 

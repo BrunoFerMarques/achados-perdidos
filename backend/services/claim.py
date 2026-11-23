@@ -31,9 +31,8 @@ from repositories.unit_of_work import UnitOfWork
 
 
 class ClaimService:
-    """Claims (scope §6), their review by an attendant and the pickup at the counter (RN14, RN44
-    to RN46). Every date comes from the injected
-    clock, the same one domain/blocking.py and domain/pickup.py are given as `now`."""
+    """Reivindicações, análise do atendente e retirada no balcão. Todas as datas vêm do relógio
+    injetável, o mesmo que o domain/blocking.py e o domain/pickup.py recebem como `now`."""
 
     def __init__(self, uow: UnitOfWork, clock: Clock):
         self._uow = uow
@@ -41,8 +40,8 @@ class ClaimService:
 
     def create(self, actor: User, item_id: int, answers: Sequence[str]) -> Claim:
         ensure(can_claim(actor))
-        # one claim at a time per user: the limits below are counted from the database, and a
-        # burst of requests would otherwise all read the same count (RN11, RN12, RN15)
+        # trava o usuário pra processar uma reivindicação dele por vez; sem isso, uma rajada de
+        # pedidos leria a mesma contagem e passaria dos limites
         self._uow.users.lock(actor.id)
         item = self._claimable_item(actor, item_id)
         if len(answers) != len(item.questions):
@@ -50,7 +49,7 @@ class ClaimService:
         now = self._clock.now()
         self._ensure_may_try(actor, item, now)
         if self._uow.claims.count_active(actor.id) >= MAX_ACTIVE_CLAIMS:
-            raise TooManyActiveClaims()  # RN12
+            raise TooManyActiveClaims()
 
         value = score(answers, [q.answer for q in item.questions])
         claim = Claim.submit(item, actor.id, answers, value, at=now)
@@ -59,9 +58,8 @@ class ClaimService:
         return claim
 
     def questions(self, actor: User, item_id: int) -> Sequence[ItemQuestion]:
-        # what the claimant answers, only when they could try; the public listing never shows them
-        # (RN50), and QuestionOut never carries the expected answer (RN23). RN12 is left out: the
-        # user may cancel another claim before sending this one
+        # só mostra as perguntas pra quem poderia reivindicar (a listagem pública não mostra).
+        # O limite de ativas fica de fora porque dá pra cancelar outra antes de enviar
         ensure(can_claim(actor))
         item = self._claimable_item(actor, item_id)
         self._ensure_may_try(actor, item, self._clock.now())
@@ -72,7 +70,7 @@ class ClaimService:
 
     def cancel(self, actor: User, claim_id: int) -> Claim:
         claim = self._uow.claims.get_for_update(claim_id)
-        # someone else's claim looks like a missing one: an id doesn't tell who claimed what
+        # reivindicação de outra pessoa dá 404, pra não revelar quem reivindicou o quê
         if claim is None or not can_cancel_claim(actor, claim.claimant_id):
             raise ClaimNotFound()
         claim.cancel(by=actor.id, at=self._clock.now())
@@ -83,22 +81,22 @@ class ClaimService:
         return self._uow.claims.list_pending(self._staff_point_ids(actor), staff_id=actor.id)
 
     def list_approved(self, actor: User) -> Sequence[Claim]:
-        # the counter's queue: who may come for which item (RN44 to RN46)
+        # fila do balcão: quem pode vir buscar qual item
         return self._uow.claims.list_approved(self._staff_point_ids(actor), staff_id=actor.id)
 
     def approve(self, actor: User, claim_id: int) -> Claim:
         claim = self._find_for_staff(actor, claim_id)
-        # RN13: the item must be on the shelf, and not reserved for another claim
+        # só aprova com o item na prateleira, sem reserva pra outra pessoa
         if claim.item.status != ItemStatus.AVAILABLE:
             raise ItemNotAvailable()
         claim.approve(by=actor.id, at=self._clock.now(), pickup_code=generate_code())  # RN44
-        # one commit: the claim and the item change together, or neither does
+        # reivindicação e item mudam no mesmo commit
         self._uow.commit()
         return claim
 
     def reject(self, actor: User, claim_id: int) -> Claim:
         claim = self._find_for_staff(actor, claim_id)
-        # RN15: an attendant's rejection is a failed attempt
+        # rejeição do atendente conta como tentativa falha
         claim.reject(RejectionReason.ATTENDANT, at=self._clock.now())
         self._uow.commit()
         return claim
@@ -111,7 +109,7 @@ class ClaimService:
         pickup_code: str,
         document_checked: bool,
     ) -> Claim:
-        # RN41 against the item's point; RN45 (the counter is that same point) is the domain's
+        # permissão checada no ponto do item; se o balcão é o certo, quem confere é o domínio
         claim = self._find_for_staff(actor, claim_id)
         now = self._clock.now()
         claim.pick_up(
@@ -121,29 +119,30 @@ class ClaimService:
             by=actor.id,
             at=now,
         )
-        # RN14: the item went to its owner, so the others waiting for it are turned down; the
-        # reason keeps it from counting as a failed attempt (RN15)
+        # o item foi pro dono, então as outras pendentes são rejeitadas com um motivo que não
+        # conta como falha
         for other in self._uow.claims.lock_pending_by_item(claim.item_id):
             other.reject(RejectionReason.ITEM_RETURNED, at=now)
-        # one commit: the claim, the item, its history and the other claims change together
+        # tudo no mesmo commit (reivindicação, item, histórico e as outras reivindicações)
         self._uow.commit()
         return claim
 
     def _staff_point_ids(self, actor: User) -> set[int] | None:
-        # the points whose claims the actor handles (RN41); None means every point (an admin)
+        # pontos que o atendente atende (None = todos, caso do admin)
         ensure(can_review_claims(actor))
         return None if operates_every_point(actor) else self._point_ids(actor)
 
     def _find_for_staff(self, actor: User, claim_id: int) -> Claim:
-        # the role first, so a user can't tell which claim ids exist
+        # checa o papel antes pra não revelar quais ids existem
         ensure(can_review_claims(actor))
         claim = self._uow.claims.get_for_update(claim_id)
         if claim is None:
             raise ClaimNotFound()
-        # the item too, claim first: a transfer or a receipt at the same time waits, and RN41 and
-        # RN13 read where the item is now, not where it was when the claim was loaded
+        # trava o item também, depois da reivindicação, pra esperar um envio ou recebimento que
+        # esteja rodando e ler o ponto e o status atualizados
         self._uow.items.get_for_update(claim.item_id)
-        # RN41: 403, not 404; attendants are staff, and knowing a claim exists elsewhere is harmless
+        # 403 e não 404: atendente é da equipe, saber que a reivindicação existe em outro ponto
+        # não expõe nada
         ensure(
             can_review_claim(
                 actor, claim.claimant_id, claim.collection_point_id, self._point_ids(actor)
@@ -156,16 +155,16 @@ class ClaimService:
         if item is None:
             raise ItemNotFound()
         if item.finder_id == actor.id:
-            raise OwnItemClaim()  # RN10
+            raise OwnItemClaim()
         if not accepts_claims(item.status):
             raise ItemNotClaimable()
         return item
 
     def _ensure_may_try(self, actor: User, item: Item, now: datetime) -> None:
         if self._is_blocked(actor, now):
-            raise ClaimingBlocked()  # RN15
+            raise ClaimingBlocked()
         if self._uow.claims.has_blocking_claim(item.id, actor.id):
-            raise ItemAlreadyClaimed()  # RN11
+            raise ItemAlreadyClaimed()
 
     def _point_ids(self, actor: User) -> set[int]:
         return self._uow.collection_point_attendants.point_ids_of(actor.id)

@@ -19,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # shared by every table that has updated_at; autogenerate doesn't see functions or triggers
+    # usada por toda tabela com updated_at (o autogenerate não enxerga funções nem triggers)
     op.execute(
         """
         CREATE FUNCTION set_updated_at() RETURNS trigger
@@ -54,7 +54,7 @@ def upgrade() -> None:
         sa.CheckConstraint("email ~ '^[^@\\s]+@[^@\\s]+$'", name=op.f("users_email_check")),
         sa.PrimaryKeyConstraint("id", name=op.f("users_pkey")),
     )
-    # one account per e-mail, regardless of case
+    # um cadastro por e-mail, ignorando maiúsculas
     op.create_index("users_email_key", "users", [sa.literal_column("lower(email)")], unique=True)
     op.execute(
         """
@@ -66,6 +66,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # dropping the table also drops its index and trigger
+    # dropar a tabela já leva o índice e o trigger junto
     op.drop_table("users")
     op.execute("DROP FUNCTION set_updated_at()")

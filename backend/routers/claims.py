@@ -4,19 +4,19 @@ from dependencies import ClaimServiceDep, CurrentUserDep
 from schemas.claim import ClaimCreate, ClaimOut, ClaimPickupOut, ClaimReviewOut, PickupIn
 from schemas.item import QuestionOut
 
-# every route takes CurrentUserDep; who may do what is decided by the service
+# toda rota pede login; quem pode fazer o quê fica no service
 router = APIRouter(prefix="/v1/claims", tags=["claims"])
 
 
 @router.get("/items/{item_id}/questions", response_model=list[QuestionOut])
 def claim_questions(item_id: int, current_user: CurrentUserDep, claims: ClaimServiceDep):
-    # the form of a claim: only the questions, never the expected answers (RN23)
+    # formulário da reivindicação: só as perguntas, sem as respostas esperadas
     return claims.questions(current_user, item_id)
 
 
 @router.post("", status_code=201, response_model=ClaimOut)
 def create_claim(payload: ClaimCreate, current_user: CurrentUserDep, claims: ClaimServiceDep):
-    # 201 even when the score rejects it at once: the claim exists, and its status says so (RN21)
+    # 201 mesmo se a nota rejeitar na hora, porque a reivindicação foi criada
     return claims.create(current_user, payload.item_id, payload.answers)
 
 
@@ -30,7 +30,7 @@ def cancel_claim(claim_id: int, current_user: CurrentUserDep, claims: ClaimServi
     return claims.cancel(current_user, claim_id)
 
 
-# --- the attendant's review (RN22, RN41) ---
+# --- análise do atendente ---
 
 
 @router.get("/pending", response_model=list[ClaimReviewOut])
@@ -48,7 +48,7 @@ def reject_claim(claim_id: int, current_user: CurrentUserDep, claims: ClaimServi
     return claims.reject(current_user, claim_id)
 
 
-# --- the pickup at the counter (RN44 to RN46) ---
+# --- retirada no balcão ---
 
 
 @router.get("/approved", response_model=list[ClaimPickupOut])
@@ -60,7 +60,7 @@ def list_approved_claims(current_user: CurrentUserDep, claims: ClaimServiceDep):
 def pick_up_claim(
     claim_id: int, payload: PickupIn, current_user: CurrentUserDep, claims: ClaimServiceDep
 ):
-    # an action route: the code, the counter and the photo ID check come in the body
+    # rota de ação: código, balcão e documento conferido vêm no corpo
     return claims.pick_up(
         current_user,
         claim_id,

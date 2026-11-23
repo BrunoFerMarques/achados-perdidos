@@ -4,7 +4,7 @@ from models import Base
 
 
 class Repository[T: Base]:
-    """Collection-like access to one model. Queries specific to it go in the subclass."""
+    """Acesso tipo coleção a um model. Consultas específicas ficam na subclasse."""
 
     model: type[T]
 

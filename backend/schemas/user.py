@@ -16,7 +16,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    # only the fields sent are changed; None means "keep the current value"
+    # só muda o que foi enviado (None = mantém)
     name: Name | None = None
     email: EmailStr | None = None
     password: Password | None = None
@@ -31,12 +31,12 @@ class UserUpdate(BaseModel):
 
 
 class RoleUpdate(BaseModel):
-    # the domain enum is the single list of roles: anything else is a 422
+    # usa o enum do domínio, qualquer outro valor dá 422
     role: Role
 
 
 class UserOut(BaseModel):
-    # built from the User model returned by the services
+    # monta a partir do User que os services devolvem
     model_config = ConfigDict(from_attributes=True)
 
     id: int

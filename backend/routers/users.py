@@ -5,8 +5,8 @@ from fastapi import APIRouter, Query
 from dependencies import CurrentUserDep, UserServiceDep
 from schemas.user import RoleUpdate, UserCreate, UserOut, UserUpdate
 
-# every route but registering takes CurrentUserDep: no valid token, 401 before the route runs;
-# what the logged-in user may do is decided by the service (403)
+# toda rota pede login, menos o cadastro (sem token válido é 401 antes da rota rodar).
+# O que cada usuário pode fazer fica no service (403)
 router = APIRouter(prefix="/v1/users", tags=["users"])
 
 
@@ -37,7 +37,7 @@ def update_user(
     return users.update(current_user, user_id, payload.name, payload.email, payload.password)
 
 
-# a route of its own, not a field of UserUpdate: other rules (admin only, never your own role)
+# rota separada do UserUpdate porque tem regra própria (só admin, e nunca o próprio papel)
 @router.patch("/{user_id}/role", response_model=UserOut)
 def change_user_role(
     user_id: int, payload: RoleUpdate, current_user: CurrentUserDep, users: UserServiceDep
@@ -45,7 +45,7 @@ def change_user_role(
     return users.change_role(current_user, user_id, payload.role)
 
 
-# RN16: an action, not a field to edit; the block itself is worked out from the rejections
+# desbloqueio é uma ação, não um campo; o bloqueio em si sai das rejeições
 @router.post("/{user_id}/unblock", status_code=204)
 def unblock_user(user_id: int, current_user: CurrentUserDep, users: UserServiceDep):
     users.unblock(current_user, user_id)

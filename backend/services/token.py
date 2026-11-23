@@ -6,7 +6,7 @@ from domain.errors import InvalidToken
 
 
 class TokenService:
-    """Signs the access tokens (JWT) handed out at login and reads them back."""
+    """Gera e lê os tokens JWT do login."""
 
     algorithm = "HS256"
 
@@ -16,13 +16,13 @@ class TokenService:
 
     def issue(self, user_id: int) -> str:
         now = datetime.now(UTC)
-        # the JWT spec requires sub to be a string
+        # o JWT exige que o sub seja string
         claims = {"sub": str(user_id), "iat": now, "exp": now + self._ttl}
         return jwt.encode(claims, self._secret, algorithm=self.algorithm)
 
     def user_id(self, token: str) -> int:
         try:
-            # decode checks the signature and exp; requiring exp refuses a token that never expires
+            # decode confere assinatura e exp; exigir exp barra token que nunca expira
             claims = jwt.decode(
                 token,
                 self._secret,
