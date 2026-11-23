@@ -59,13 +59,13 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
-// a POST with an optional JSON body, for the action routes (approve, pickup, transfer...)
+// monta um POST com corpo JSON opcional, pras rotas de ação (aprovar, retirar, transferir...)
 export function post(body?: unknown): RequestInit {
   return { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }
 }
 
 export function errorText(err: unknown): string {
-  // the API's message is already in Portuguese and meant for the user
+  // a API já manda a mensagem em português, pronta pro usuário
   if (err instanceof ApiError) return err.message
   return 'Não foi possível falar com a API. Tente de novo.'
 }

@@ -1,7 +1,7 @@
 import { api, post } from './client'
 import type { ItemTransfer } from './types'
 
-// the transfer between points (RN05)
+// transferência entre pontos
 export const transfersApi = {
   list: () => api<ItemTransfer[]>('/v1/items/transfers'),
   send: (itemId: number, transferToId: number) =>

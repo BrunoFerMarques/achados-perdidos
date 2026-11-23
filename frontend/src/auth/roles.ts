@@ -1,5 +1,5 @@
 import type { Role } from '../api/types'
 
-// scope §11: who claims items, and who works at the counters
+// quem reivindica itens e quem trabalha nos balcões
 export const CLAIMANTS: Role[] = ['usuario']
 export const STAFF: Role[] = ['atendente', 'admin']

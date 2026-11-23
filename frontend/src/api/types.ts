@@ -30,7 +30,7 @@ export type ClaimStatus =
   | 'concluida'
   | 'expirada'
 
-// what the claimant sees (ClaimOut): no score, no reason, no expected answer (RN21, RN23)
+// o que o reivindicante vê (ClaimOut): sem nota, sem motivo e sem resposta esperada
 export type Claim = {
   id: number
   item_id: number
@@ -48,7 +48,7 @@ export type ReviewedAnswer = {
   given: string
 }
 
-// what the attendant reviews (ClaimReviewOut, RN22)
+// o que o atendente analisa (ClaimReviewOut)
 export type ClaimReview = {
   id: number
   item_id: number
@@ -60,7 +60,7 @@ export type ClaimReview = {
   answers: ReviewedAnswer[]
 }
 
-// the counter's queue (ClaimPickupOut): the name for the photo ID check, never the code (RN46)
+// fila do balcão (ClaimPickupOut): tem o nome pra conferir o documento, mas não o código
 export type ClaimPickup = {
   id: number
   item_id: number
@@ -82,8 +82,8 @@ export type ItemStatus =
   | 'destinado'
   | 'cancelado'
 
-// an item followed by the staff between points (ItemTransferOut, RN05); only the fields the
-// transfers screen reads, the API sends more
+// item em transferência visto pela equipe (ItemTransferOut). Só os campos que a tela usa, a
+// API manda mais
 export type ItemTransfer = {
   id: number
   description: string
@@ -94,7 +94,7 @@ export type ItemTransfer = {
   created_at: string
 }
 
-// what the attendant sends at the counter (PickupIn, RN44 to RN46)
+// o que o atendente envia no balcão (PickupIn)
 export type PickupIn = {
   collection_point_id: number
   pickup_code: string

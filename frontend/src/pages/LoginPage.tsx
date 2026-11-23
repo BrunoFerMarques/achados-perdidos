@@ -6,7 +6,7 @@ import { useAuth } from '../auth/useAuth'
 export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
-  // where RequireAuth sent the user from, or the home page
+  // volta pra tela de onde o RequireAuth mandou, ou pro início
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

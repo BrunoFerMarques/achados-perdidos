@@ -4,8 +4,8 @@ import { Page } from '../components/Page'
 import { RequireAuth } from './RequireAuth'
 import { useAuth } from './useAuth'
 
-/** RequireAuth, and then only for some roles. It only hides the screen: the API is what refuses
- * (domain/permissions.py), so a forced URL still gets a 403 from it. */
+/** Igual ao RequireAuth, mas só pra alguns papéis. Só esconde a tela, quem bloqueia de verdade
+ * é a API (se alguém forçar a URL, leva 403). */
 export function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }) {
   return (
     <RequireAuth>

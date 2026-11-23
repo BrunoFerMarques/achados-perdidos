@@ -7,17 +7,17 @@ import { FeedbackLine } from '../components/FeedbackLine'
 import { LoadState, Page } from '../components/Page'
 import { formatDateTime, isPast } from '../labels'
 
-/** The pickup at the counter (RN44 to RN46): pick the counter, find who came for which item,
- * type the code they show and confirm the photo ID. */
+/** Retirada no balcão: escolhe o balcão, acha quem veio buscar qual item, digita o código
+ * que a pessoa mostra e confirma o documento com foto. */
 export function PickupPage() {
   const points = useLoad(pointsApi.mine)
   const queue = useLoad(claimsApi.approved)
   const [chosen, setChosen] = useState<number | null>(null)
   const [done, setDone] = useState<Feedback | null>(null)
 
-  // the first of the attendant's points until they choose another one
+  // começa no primeiro ponto do atendente até ele escolher outro
   const counter = chosen ?? points.data?.[0]?.id ?? null
-  // RN45: the code only works where the item is, so the queue shows that counter's items
+  // o código só vale onde o item está, então a fila mostra só os itens desse balcão
   const waiting = queue.data?.filter((claim) => claim.collection_point_id === counter) ?? []
 
   function handOver(claim: ClaimPickup) {
