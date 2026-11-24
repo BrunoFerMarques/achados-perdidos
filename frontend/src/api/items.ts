@@ -1,5 +1,13 @@
 import { api, post } from './client'
-import type { ItemTransfer } from './types'
+import type { ItemCreate, ItemTransfer, PublicItem } from './types'
+
+// the public listing (RN50): no token needed; only items already at a counter come back
+export const itemsApi = {
+  // every filter is optional and goes in the query string; an empty one stays out
+  listPublic: (params: URLSearchParams) => api<PublicItem[]>(`/v1/items?${params}`),
+  // the finder registers what they found (needs the token); the API answers with the new item
+  register: (item: ItemCreate) => api<{ id: number }>('/v1/items', post(item)),
+}
 
 // transferência entre pontos
 export const transfersApi = {

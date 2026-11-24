@@ -7,17 +7,18 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MyClaimsPage } from './pages/MyClaimsPage'
 import { PickupPage } from './pages/PickupPage'
+import { RegisterItemPage } from './pages/RegisterItemPage'
 import { ReviewClaimsPage } from './pages/ReviewClaimsPage'
 import { TransfersPage } from './pages/TransfersPage'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<RequireAuth><HomePage /></RequireAuth>} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/itens/novo"
-        element={<RequireAuth><p>Registrar item (em breve)</p></RequireAuth>}
+        element={<RequireAuth><RegisterItemPage /></RequireAuth>}
       />
       <Route
         path="/itens/:id/reivindicar"
