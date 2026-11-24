@@ -1,5 +1,5 @@
 import { api, post } from './client'
-import type { ItemCreate, ItemTransfer, PublicItem } from './types'
+import type { ItemCreate, ItemTransfer, PublicItem, ReceiveIn, RegisteredItem } from './types'
 
 // the public listing (RN50): no token needed; only items already at a counter come back
 export const itemsApi = {
@@ -7,6 +7,13 @@ export const itemsApi = {
   listPublic: (params: URLSearchParams) => api<PublicItem[]>(`/v1/items?${params}`),
   // the finder registers what they found (needs the token); the API answers with the new item
   register: (item: ItemCreate) => api<{ id: number }>('/v1/items', post(item)),
+}
+
+// recebimento no balcão, só para a equipe
+export const receiptsApi = {
+  list: () => api<RegisteredItem[]>('/v1/items/registered'),
+  receive: (itemId: number, data: ReceiveIn) =>
+    api<{ id: number }>(`/v1/items/${itemId}/receive`, post(data)),
 }
 
 // transferência entre pontos

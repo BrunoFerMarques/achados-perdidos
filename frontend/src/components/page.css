@@ -20,12 +20,19 @@
 
 .page input[type='text'],
 .page input[type='number'],
+.page textarea,
 .page select {
   display: block;
   margin-top: 4px;
   font: inherit;
   padding: 6px 8px;
   min-width: 260px;
+}
+
+.page textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
 }
 
 .page label.check {

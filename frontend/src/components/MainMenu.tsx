@@ -13,6 +13,7 @@ export function MainMenu() {
       {CLAIMANTS.includes(user.role) && <Link to="/reivindicacoes">Minhas reivindicações</Link>}
       {STAFF.includes(user.role) && (
         <>
+          <Link to="/atendimento/recebimento">Receber itens</Link>
           <Link to="/atendimento/analise">Analisar reivindicações</Link>
           <Link to="/atendimento/retirada">Retirada no balcão</Link>
           <Link to="/atendimento/transferencias">Transferências</Link>
