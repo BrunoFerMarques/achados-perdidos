@@ -8,13 +8,13 @@ import migrate
 
 def pytest_configure(config):
     load_dotenv()
-    # CI has no .env; any secret works, since the tests sign and check their own tokens
+    # no CI não tem .env, mas qualquer segredo serve porque os testes assinam os próprios tokens
     os.environ.setdefault("JWT_SECRET", "test-secret-only-for-the-pytest-run")
 
 
 @pytest.fixture(scope="session")
 def test_database():
-    # used by tests/integration and tests/api; tests/unit never asks for it, so it runs without one
+    # usado por tests/integration e tests/api; tests/unit nunca pede, então roda sem banco
     test_database_url = os.environ.get("TEST_DATABASE_URL")
     if not test_database_url:
         pytest.exit(
@@ -27,6 +27,6 @@ def test_database():
             returncode=pytest.ExitCode.USAGE_ERROR,
         )
 
-    # the API reads DATABASE_URL on every request; during tests it must hit the test database
+    # a API lê o DATABASE_URL a cada pedido, então aqui ele aponta pro banco de teste
     os.environ["DATABASE_URL"] = test_database_url
     migrate.main()

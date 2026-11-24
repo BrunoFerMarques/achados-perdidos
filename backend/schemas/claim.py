@@ -7,19 +7,19 @@ from domain.claims import ClaimStatus
 from domain.items import MAX_QUESTIONS, MIN_QUESTIONS
 from domain.pickup import CODE_LENGTH
 
-# blank is allowed: "I don't know" is an answer, it just doesn't score
+# pode ficar em branco ("não sei" também é resposta, só não pontua)
 Answer = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
 
 
 class ClaimCreate(BaseModel):
     item_id: int
-    # one answer per question, in the order the item lists them
+    # uma resposta por pergunta, na mesma ordem das perguntas do item
     answers: Annotated[list[Answer], Field(min_length=MIN_QUESTIONS, max_length=MAX_QUESTIONS)]
 
 
 class ClaimOut(BaseModel):
-    """What the claimant sees (RN21, RN53): status, collection point and pickup code. No score,
-    no rejection reason and no expected answer (RN23)."""
+    """O que o reivindicante vê: status, ponto de coleta e código de retirada. Nada de nota,
+    motivo da rejeição ou resposta esperada."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -33,8 +33,7 @@ class ClaimOut(BaseModel):
 
     @model_validator(mode="after")
     def _code_only_while_approved(self) -> Self:
-        # a cancelled, expired or completed claim keeps the code in the database, but it no
-        # longer opens anything (RN44)
+        # cancelada, expirada ou concluída ainda tem o código salvo, mas ele não vale mais
         if self.status != ClaimStatus.APPROVED:
             self.pickup_code = None
             self.pickup_deadline = None
@@ -49,8 +48,8 @@ class ReviewedAnswerOut(BaseModel):
 
 
 class ClaimReviewOut(BaseModel):
-    """What the attendant sees (RN22): the score and each answer next to the expected one. No
-    pickup code: the claimant shows it at the counter, so whoever validates it never reads it."""
+    """O que o atendente vê na análise: a nota e cada resposta do lado da esperada. Não tem o
+    código de retirada, quem mostra o código é o reivindicante no balcão."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,7 +65,7 @@ class ClaimReviewOut(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _pair_answers(cls, claim: Any) -> Any:
-        # built from the Claim model: each given answer meets its question by position
+        # monta a partir do Claim, juntando cada resposta com a pergunta pela posição
         if isinstance(claim, dict):
             return claim
         questions = {q.position: q for q in claim.item.questions}
@@ -83,26 +82,26 @@ class ClaimReviewOut(BaseModel):
         return fields
 
 
-# a code of another length can't be right; the domain decides about the rest (RN44)
+# código com outro tamanho já está errado; o resto o domínio confere
 PickupCode = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=CODE_LENGTH, max_length=CODE_LENGTH)
 ]
 
 
 class PickupIn(BaseModel):
-    """What the attendant fills in at the counter (RN44 to RN46)."""
+    """O que o atendente preenche no balcão."""
 
-    # the counter where the claimant showed up; RN45 wants it to be where the item is
+    # balcão onde a pessoa apareceu, tem que ser o ponto onde o item está
     collection_point_id: int
-    # typed from what the claimant shows; case and stray spaces don't matter
+    # digitado a partir do que a pessoa mostra, maiúsculas e espaços não importam
     pickup_code: PickupCode
-    # RN46: no default, the attendant ticks it on purpose
+    # sem valor padrão de propósito: o atendente tem que marcar
     document_checked: bool
 
 
 class ClaimPickupOut(BaseModel):
-    """What the attendant sees at the counter: who comes for which item, and until when. The name
-    is for the photo ID check (RN46). No pickup code: the claimant shows it, like in the review."""
+    """O que o atendente vê no balcão: quem vem buscar qual item e até quando. O nome é pra
+    conferir o documento. Não tem o código, quem mostra é a pessoa."""
 
     id: int
     item_id: int
@@ -116,7 +115,7 @@ class ClaimPickupOut(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _flatten(cls, claim: Any) -> Any:
-        # built from the Claim model: the description and the name come from its relationships
+        # monta a partir do Claim, pegando descrição e nome das relações
         if isinstance(claim, dict):
             return claim
         return {

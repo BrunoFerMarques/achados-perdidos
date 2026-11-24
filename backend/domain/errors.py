@@ -1,5 +1,5 @@
 class DomainError(Exception):
-    """A business rule refused the operation. The message is shown to the API client."""
+    """Uma regra de negócio recusou a operação. A mensagem vai pro cliente da API."""
 
     message = "Operação não permitida"
 
@@ -8,23 +8,23 @@ class DomainError(Exception):
 
 
 class NotFoundError(DomainError):
-    """The requested record doesn't exist."""
+    """Registro não encontrado."""
 
 
 class ConflictError(DomainError):
-    """The operation clashes with data that already exists."""
+    """Conflito com um dado que já existe."""
 
 
 class UnauthorizedError(DomainError):
-    """The client didn't prove who it is."""
+    """O cliente não se identificou."""
 
 
 class ForbiddenError(DomainError):
-    """The client proved who it is, but may not do this."""
+    """O cliente se identificou, mas não tem permissão."""
 
 
 class InvalidRequestError(DomainError):
-    """The request is well formed, but doesn't fit the record it points at."""
+    """Pedido bem formado, mas que não bate com o registro (ex.: número errado de respostas)."""
 
 
 class InvalidCredentials(UnauthorizedError):
@@ -80,7 +80,7 @@ class LostReportNotFound(NotFoundError):
 
 
 class InvalidPickupCode(InvalidRequestError):
-    # 422, not 404: the claim exists, the code typed for it doesn't fit
+    # 422 e não 404: a reivindicação existe, o código digitado é que está errado
     message = "Código de retirada inválido"
 
 

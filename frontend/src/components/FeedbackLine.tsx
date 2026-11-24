@@ -1,7 +1,7 @@
 import type { Feedback } from '../api/hooks'
 
-/** The outcome of an action. Always mounted, so screen readers announce what appears in it: a
- * success as a status, an error as an alert. */
+/** Mostra o resultado de uma ação. Fica sempre montado pro leitor de tela anunciar o que
+ * aparecer (sucesso como status, erro como alerta). */
 export function FeedbackLine({ feedback }: { feedback: Feedback | null }) {
   return (
     <div aria-live="polite">

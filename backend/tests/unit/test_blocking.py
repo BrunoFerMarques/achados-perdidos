@@ -1,4 +1,4 @@
-# RN15 and RN16 (docs/diagrama.md §6): blocking a user after failed claims
+# bloqueio depois de reivindicações falhas
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -19,7 +19,7 @@ def test_rejection_by_score_or_by_attendant_counts_as_failure(reason):
 
 
 def test_rejection_because_item_was_returned_to_someone_else_does_not_count():
-    # RN14: the claimant did nothing wrong, the item just went to its owner first
+    # o reivindicante não fez nada errado, o item só foi pro dono antes
     assert not counts_as_failure(RejectionReason.ITEM_RETURNED)
 
 
@@ -44,7 +44,7 @@ def test_block_ends_7_days_after_the_third_failure():
 
 
 def test_failures_that_caused_a_block_do_not_count_again_after_it_ends():
-    # otherwise one more failure on day 10 would block again, with failures already paid for
+    # senão mais uma falha no dia 10 bloquearia de novo, com falhas que já foram pagas
     assert not is_blocked([day(0), day(1), day(2), day(10)], now=day(11))
 
 
@@ -53,7 +53,6 @@ def test_three_new_failures_after_a_block_block_again():
 
 
 def test_admin_unblock_frees_the_user_at_once():
-    # RN16
     assert not is_blocked([day(0), day(1), day(2)], now=day(3), unblocked_at=day(2.5))
 
 

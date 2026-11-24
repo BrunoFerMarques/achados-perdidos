@@ -13,13 +13,13 @@ class ClaimRepository(Repository[Claim]):
     model = Claim
 
     def get_for_update(self, claim_id: int) -> Claim | None:
-        # locks the row until the commit: an approval and a cancellation of the same claim at once
-        # run one after the other, and the second one sees the status the first one left
+        # trava a linha até o commit. Assim aprovar e cancelar a mesma reivindicação ao mesmo
+        # tempo roda em fila, e o segundo vê o status que o primeiro deixou
         stmt = select(Claim).where(Claim.id == claim_id).with_for_update()
         return self._session.scalars(stmt.execution_options(populate_existing=True)).one_or_none()
 
     def list_by_claimant(self, claimant_id: int) -> Sequence[Claim]:
-        # the item comes along: ClaimOut shows its collection point
+        # traz o item junto porque o ClaimOut mostra o ponto de coleta
         stmt = (
             select(Claim)
             .where(Claim.claimant_id == claimant_id)
@@ -29,8 +29,8 @@ class ClaimRepository(Repository[Claim]):
         return self._session.scalars(stmt).all()
 
     def lock_active_by_claimant(self, claimant_id: int) -> Sequence[Claim]:
-        # locked like get_for_update: an approval racing an account deletion either lands first
-        # and is seen here, or waits and then finds the claim gone
+        # trava igual ao get_for_update: se uma aprovação rodar junto com a exclusão da conta,
+        # ou ela termina antes ou espera e não acha mais a reivindicação
         stmt = (
             select(Claim)
             .where(Claim.claimant_id == claimant_id, Claim.status.in_(ACTIVE_STATUSES))
@@ -39,14 +39,13 @@ class ClaimRepository(Repository[Claim]):
         return self._session.scalars(stmt.execution_options(populate_existing=True)).all()
 
     def count_active(self, claimant_id: int) -> int:
-        # RN12
         stmt = select(func.count()).where(
             Claim.claimant_id == claimant_id, Claim.status.in_(ACTIVE_STATUSES)
         )
         return self._session.scalar(stmt)
 
     def has_blocking_claim(self, item_id: int, claimant_id: int) -> bool:
-        # RN11: an active or rejected claim on the same item
+        # já tem uma ativa ou rejeitada nesse item?
         stmt = select(
             exists().where(
                 Claim.item_id == item_id,
@@ -57,14 +56,14 @@ class ClaimRepository(Repository[Claim]):
         return self._session.scalar(stmt)
 
     def rejections_of(self, claimant_id: int) -> Sequence[tuple[datetime, str]]:
-        # RN15: when and why each claim was rejected; domain/blocking.py decides which count
+        # data e motivo de cada rejeição; o que conta como falha quem decide é o blocking.py
         stmt = select(Claim.rejected_at, Claim.rejection_reason).where(
             Claim.claimant_id == claimant_id, Claim.status == ClaimStatus.REJECTED
         )
         return self._session.execute(stmt).all()
 
     def lock_pending_by_item(self, item_id: int) -> Sequence[Claim]:
-        # RN14: locked like get_for_update, so a cancellation at the same time isn't overwritten
+        # trava igual ao get_for_update pra não sobrescrever um cancelamento feito junto
         stmt = (
             select(Claim)
             .where(Claim.item_id == item_id, Claim.status == ClaimStatus.PENDING)
@@ -73,16 +72,15 @@ class ClaimRepository(Repository[Claim]):
         return self._session.scalars(stmt.execution_options(populate_existing=True)).all()
 
     def list_pending(self, point_ids: set[int] | None, staff_id: int) -> Sequence[Claim]:
-        # the answers and questions come along for the review (RN22)
+        # traz respostas e perguntas pra tela de análise
         stmt = self._for_staff(ClaimStatus.PENDING, point_ids, staff_id).options(
             selectinload(Claim.answers), selectinload(Claim.item).selectinload(Item.questions)
         )
         return self._session.scalars(stmt).all()
 
     def list_approved(self, point_ids: set[int] | None, staff_id: int) -> Sequence[Claim]:
-        # the item and the claimant come along for the counter: the description to find the
-        # object, the name to check the photo ID (RN46). An approval past its deadline stays here
-        # until the scheduled task expires it; ClaimPickupOut carries the deadline
+        # traz item e reivindicante pro balcão (descrição pra achar o objeto, nome pra conferir
+        # o documento). Aprovação com prazo vencido continua aqui até a tarefa de expiração rodar
         stmt = self._for_staff(ClaimStatus.APPROVED, point_ids, staff_id).options(
             selectinload(Claim.item), selectinload(Claim.claimant)
         )
@@ -90,8 +88,10 @@ class ClaimRepository(Repository[Claim]):
 
     @staticmethod
     def _for_staff(status: ClaimStatus, point_ids: set[int] | None, staff_id: int) -> Select:
-        """Claims with this status, oldest first. `point_ids` limits them to items at those points
-        (RN41), and None means every point. The staff member's own claims are left out."""
+        """Reivindicações com esse status, da mais antiga pra mais nova.
+
+        `point_ids` filtra pelos pontos dos itens (None = todos). As reivindicações do próprio
+        atendente ficam de fora."""
         stmt = (
             select(Claim)
             .join(Item)

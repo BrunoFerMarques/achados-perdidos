@@ -1,9 +1,9 @@
-"""Give the admin role to an account that already exists.
+"""Dá o papel de admin pra uma conta que já existe.
 
-Usage: python make_admin.py <email>   (the person registers through the API first)
+Uso: python make_admin.py <email>   (a pessoa precisa se cadastrar pela API antes)
 
-The API never makes anyone admin on its own: registering always gives the usuario role, and only
-an admin can change roles. So the first admin is made here, by someone with access to DATABASE_URL.
+A API não deixa ninguém virar admin sozinho: o cadastro sempre cria usuario e só admin muda
+papel. Por isso o primeiro admin é criado aqui, por quem tem acesso ao banco.
 """
 
 import sys
@@ -25,7 +25,7 @@ def main(args: list[str]) -> int:
         return 2
     load_dotenv()
     with Session(get_engine(), expire_on_commit=False) as session:
-        # built by the same composition root as the API, so the script runs the same use case
+        # usa a mesma composition root da API, então roda o mesmo caso de uso
         users = get_user_service(UnitOfWork(session), get_clock())
         try:
             user = users.promote_to_admin(args[0])

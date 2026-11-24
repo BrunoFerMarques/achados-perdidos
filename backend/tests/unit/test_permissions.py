@@ -1,4 +1,4 @@
-# scope §11 (docs/diagrama.md): who may see, edit and delete user accounts
+# quem pode ver, editar e excluir contas
 from dataclasses import dataclass
 
 import pytest
@@ -27,7 +27,7 @@ OTHER_ID = 2
 
 @dataclass
 class FakeActor:
-    """Stands in for the logged-in User: the rules only read id and role."""
+    """Faz o papel do User logado: as regras só leem id e role."""
 
     id: int
     role: str
@@ -75,7 +75,6 @@ def test_only_admin_changes_role_and_never_their_own(role, target_id, allowed):
     [(Role.USUARIO, False), (Role.ATENDENTE, False), (Role.ADMIN, True)],
 )
 def test_only_admin_unblocks_users(role, allowed):
-    # RN16
     assert can_unblock_user(FakeActor(OWN_ID, role)) is allowed
 
 
@@ -93,7 +92,7 @@ def test_only_admin_manages_collection_points(role, allowed):
     [(Role.USUARIO, True), (Role.ATENDENTE, False), (Role.ADMIN, False)],
 )
 def test_only_users_claim_items(role, allowed):
-    # scope §11: attendants and admins review claims, they don't make them
+    # atendente e admin analisam reivindicações, não fazem
     assert can_claim(FakeActor(OWN_ID, role)) is allowed
 
 
@@ -122,7 +121,7 @@ OTHER_POINT_ID = 20
         (Role.ATENDENTE, {OTHER_POINT_ID}, False),
         (Role.ATENDENTE, set(), False),
         (Role.ADMIN, set(), True),
-        # a user can't be linked to a point; if the role changed later, the link alone isn't enough
+        # usuário não se vincula a ponto; se o papel mudou depois, só o vínculo não basta
         (Role.USUARIO, {POINT_ID}, False),
     ],
 )
@@ -134,8 +133,8 @@ def test_rn41_attendant_operates_only_items_at_their_points(role, actor_point_id
     ("role", "claimant_id", "actor_point_ids", "allowed"),
     [
         (Role.ATENDENTE, OTHER_ID, {POINT_ID}, True),
-        (Role.ATENDENTE, OTHER_ID, {OTHER_POINT_ID}, False),  # RN41
-        # claimed as a user, then made an attendant: still not their own judge
+        (Role.ATENDENTE, OTHER_ID, {OTHER_POINT_ID}, False),
+        # reivindicou como usuário e depois virou atendente: continua sem julgar a própria
         (Role.ATENDENTE, OWN_ID, {POINT_ID}, False),
         (Role.ADMIN, OTHER_ID, set(), True),
         (Role.ADMIN, OWN_ID, set(), False),

@@ -24,9 +24,8 @@ from repositories.unit_of_work import UnitOfWork
 
 
 class ItemService:
-    """Found items (scope §4.1) and their way between collection points (RN05). The finder comes
-    from the token, never from the body. Every date in the custody history comes from the
-    injected clock, which RN04 will compare with."""
+    """Itens achados e transferência entre pontos. O achador vem do token, nunca do corpo, e as
+    datas do histórico vêm do relógio injetável."""
 
     def __init__(self, uow: UnitOfWork, clock: Clock):
         self._uow = uow
@@ -102,14 +101,14 @@ class ItemService:
         return self._uow.items.list_registered()
 
     def transfer(self, actor: User, item_id: int, transfer_to_id: int) -> Item:
-        # the role first, so a user neither locks the row nor learns anything about the item
+        # checa o papel antes pra usuário comum não travar a linha nem descobrir nada do item
         ensure(can_transfer_items(actor))
         item = self._lock_item(item_id)
-        # RN05, RN41: whoever sends it works where the item is now
+        # quem envia tem que trabalhar no ponto onde o item está
         ensure(can_operate_item(actor, item.collection_point_id, self._point_ids(actor)))
         if self._uow.collection_points.get(transfer_to_id) is None:
             raise CollectionPointNotFound()
-        # RN05: only from the shelf, and to another point; the model says no otherwise
+        # o model recusa se não estiver na prateleira ou se for pro mesmo ponto
         item.transfer_to(transfer_to_id, by=actor.id, at=self._clock.now())
         self._uow.commit()
         return item
@@ -117,10 +116,10 @@ class ItemService:
     def arrive(self, actor: User, item_id: int) -> Item:
         ensure(can_transfer_items(actor))
         item = self._lock_item(item_id)
-        # before the permission: without a destination there is no point to check it against
+        # antes da permissão, porque sem destino não tem ponto pra checar
         if item.transfer_to_id is None:
             raise ItemNotInTransfer()
-        # RN05, RN41: whoever confirms the arrival works at the destination
+        # quem confirma a chegada tem que trabalhar no destino
         ensure(can_operate_item(actor, item.transfer_to_id, self._point_ids(actor)))
         item.arrive(by=actor.id, at=self._clock.now())
         self._uow.commit()
@@ -157,7 +156,7 @@ class ItemService:
         )
 
     def _lock_item(self, item_id: int) -> Item:
-        # locked until the commit: two operations on the same item run one after the other
+        # trava até o commit, então duas operações no mesmo item rodam em fila
         item = self._uow.items.get_for_update(item_id)
         if item is None:
             raise ItemNotFound()

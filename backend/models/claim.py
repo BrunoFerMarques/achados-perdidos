@@ -21,7 +21,7 @@ from models.user import User
 
 
 class Claim(Base):
-    """Someone saying a found item is theirs (scope §6), with the answers they gave (§7)."""
+    """Alguém dizendo que um item achado é seu, junto com as respostas que deu."""
 
     __tablename__ = "claims"
     __table_args__ = (
@@ -37,26 +37,26 @@ class Claim(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
-    # a claim means nothing without its item or its claimant
+    # sem o item ou sem o usuário a reivindicação não faz sentido (CASCADE)
     item_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("items.id", ondelete="CASCADE"))
     claimant_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    # no server default: the score decides whether it starts pending or rejected
+    # sem default: a nota decide se ela começa pendente ou rejeitada
     status: Mapped[str]
-    # share of correct answers (§7); only the attendant sees it (RN21, RN22)
+    # fração de respostas certas, só o atendente vê
     score: Mapped[float]
     rejection_reason: Mapped[str | None]
-    # both from the injected clock: blocking.py and pickup.py compare them with clock.now()
+    # vêm do relógio injetável, que é o que blocking.py e pickup.py usam pra comparar
     rejected_at: Mapped[datetime | None]
     approved_at: Mapped[datetime | None]
     pickup_code: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     item: Mapped[Item] = relationship()
-    # the attendant reads the name to check the photo ID at the pickup (RN46)
+    # o atendente usa o nome pra conferir o documento na retirada
     claimant: Mapped[User] = relationship()
-    # in position order, like Item.questions, so each answer sits next to its question
+    # em ordem de posição pra cada resposta bater com a pergunta
     answers: Mapped[list["ClaimAnswer"]] = relationship(
         cascade="all, delete-orphan", order_by="ClaimAnswer.position"
     )
@@ -65,7 +65,7 @@ class Claim(Base):
     def submit(
         cls, item: Item, claimant_id: int, answers: Sequence[str], score: float, *, at: datetime
     ) -> Self:
-        """A new claim, already scored: below the minimum it starts rejected (§7)."""
+        """Cria a reivindicação já com a nota. Abaixo do mínimo ela já nasce rejeitada."""
         passed = passes(score)
         claim = cls(
             item_id=item.id,
@@ -78,13 +78,13 @@ class Claim(Base):
             ],
         )
         if not passed:
-            # nobody reviews it, and it counts as a failed attempt (RN15)
+            # ninguém analisa, e conta como tentativa falha
             claim._record_rejection(RejectionReason.LOW_SCORE, at)
         return claim
 
     @property
     def collection_point_id(self) -> int:
-        # RN53: the claimant learns where to pick the item up
+        # o reivindicante precisa saber onde retirar o item
         return self.item.collection_point_id
 
     @property
@@ -92,7 +92,7 @@ class Claim(Base):
         return None if self.approved_at is None else pickup.pickup_deadline(self.approved_at)
 
     def transition_to(self, target: ClaimStatus) -> None:
-        # RN01: outside the diagram it raises InvalidTransition
+        # transição fora do diagrama levanta InvalidTransition
         self.status = transition(self.status, target)
 
     def approve(self, *, by: int, at: datetime, pickup_code: str) -> None:
@@ -109,13 +109,13 @@ class Claim(Base):
         was_approved = self.status == ClaimStatus.APPROVED
         self.transition_to(ClaimStatus.CANCELLED)
         if was_approved:
-            # the item was waiting for this claimant; it goes back on the shelf
+            # o item estava reservado pra ele, então volta pra prateleira
             self.item.transition_to(ItemStatus.AVAILABLE, by=by, at=at)
 
     def pick_up(
         self, typed_code: str, *, point_id: int, document_checked: bool, by: int, at: datetime
     ) -> None:
-        # RN44 to RN46: the domain checks the code, the deadline, the counter and the photo ID
+        # o domínio confere código, prazo, balcão e documento
         self.transition_to(
             pickup.complete_pickup(
                 self.status,
@@ -131,26 +131,26 @@ class Claim(Base):
         self.item.transition_to(ItemStatus.RETURNED, by=by, at=at)
 
     def _record_rejection(self, reason: RejectionReason, at: datetime) -> None:
-        # blocking.py counts the failures by rejected_at, so it is never left out
+        # o bloqueio conta as falhas pelo rejected_at, então ele tem que estar sempre preenchido
         self.rejection_reason = reason
         self.rejected_at = at
 
 
 class ClaimAnswer(Base):
-    """What the claimant answered to one verification question; the attendant reads it (RN22)."""
+    """Resposta dada a uma pergunta de verificação (o atendente lê na análise)."""
 
     __tablename__ = "claim_answers"
 
     claim_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("claims.id", ondelete="CASCADE"), primary_key=True
     )
-    # the position of the item question it answers
+    # posição da pergunta que ela responde
     position: Mapped[int] = mapped_column(primary_key=True)
     answer: Mapped[str]
 
 
-# RN11: one active claim per user and item, and none after a rejection, even when several requests
-# arrive together (otherwise a burst of claims would try many answers before any is rejected)
+# uma reivindicação ativa por usuário e item, e nenhuma depois de rejeitada. O índice segura
+# pedidos simultâneos que passariam juntos pela checagem do service
 Index(
     "claims_claimant_item_key",
     Claim.item_id,
@@ -158,7 +158,7 @@ Index(
     unique=True,
     postgresql_where=Claim.status.in_(sorted(RECLAIM_BLOCKING_STATUSES)),
 )
-# RN13: at most one approved claim per item at a time
+# no máximo uma reivindicação aprovada por item
 Index(
     "claims_approved_item_key",
     Claim.item_id,

@@ -1,7 +1,7 @@
-"""Who may do what (scope §11). Each rule only answers yes or no; `ensure` turns a no into 403.
+"""Regras de permissão.
 
-The rules live here, not in the routers, so they hold for every way into a service and can be
-tested without a database or a server.
+Cada função só responde True ou False, e o `ensure` transforma o False em 403. Ficam aqui e não
+nos routers pra valer em qualquer entrada e dar pra testar sem banco.
 """
 
 from typing import Protocol
@@ -11,7 +11,7 @@ from domain.roles import Role
 
 
 class Actor(Protocol):
-    """Whoever is asking. The User model fits it as is, so domain/ doesn't import models/."""
+    """Quem está fazendo o pedido. O User já encaixa aqui sem o domain/ importar models/."""
 
     id: int
     role: str
@@ -27,22 +27,22 @@ def can_list_users(actor: Actor) -> bool:
 
 
 def can_manage_user(actor: Actor, user_id: int) -> bool:
-    # see, edit and delete an account: your own, or anyone's if you are an admin
+    # a própria conta, ou qualquer uma se for admin
     return actor.role == Role.ADMIN or actor.id == user_id
 
 
 def can_change_role(actor: Actor, user_id: int) -> bool:
-    # not your own: an admin can't take away their own access by mistake
+    # nem o admin muda o próprio papel, pra não se trancar fora sem querer
     return actor.role == Role.ADMIN and actor.id != user_id
 
 
 def can_unblock_user(actor: Actor) -> bool:
-    # RN16: only an admin lifts a block before it ends
+    # só o admin desbloqueia
     return actor.role == Role.ADMIN
 
 
 def can_claim(actor: Actor) -> bool:
-    # scope §11: users claim items; attendants and admins are the ones who review the claims
+    # quem reivindica é usuário; atendente e admin só analisam
     return actor.role == Role.USUARIO
 
 
@@ -59,7 +59,7 @@ def operates_every_point(actor: Actor) -> bool:
 
 
 def can_operate_item(actor: Actor, item_point_id: int, actor_point_ids: set[int]) -> bool:
-    # RN41: an attendant only handles items at the points they work at; an admin, at any point
+    # atendente só mexe em item dos pontos dele, admin em qualquer um
     if operates_every_point(actor):
         return True
     return actor.role == Role.ATENDENTE and item_point_id in actor_point_ids
@@ -68,8 +68,7 @@ def can_operate_item(actor: Actor, item_point_id: int, actor_point_ids: set[int]
 def can_review_claim(
     actor: Actor, claimant_id: int, item_point_id: int, actor_point_ids: set[int]
 ) -> bool:
-    # nobody reviews or hands over their own claim: a user who claimed and was later made an
-    # attendant (RN21)
+    # ninguém analisa a própria reivindicação (ex.: usuário que virou atendente depois)
     return (
         can_review_claims(actor)
         and actor.id != claimant_id
@@ -83,7 +82,7 @@ def can_view_custody(actor: Actor) -> bool:
 
 
 def can_transfer_items(actor: Actor) -> bool:
-    # RN05: the staff sends items between points and follows them; RN41 then checks which ones
+    # só a equipe transfere, e só itens dos próprios pontos
     return actor.role in (Role.ATENDENTE, Role.ADMIN)
 
 

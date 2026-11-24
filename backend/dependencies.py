@@ -1,4 +1,4 @@
-"""Composition root: the one place that decides which object each route receives."""
+"""Composition root: aqui se decide o que cada rota recebe."""
 
 import os
 from datetime import timedelta
@@ -28,12 +28,12 @@ TOKEN_TTL = timedelta(hours=1)
 
 _password_hasher = PasswordHasher()
 _system_clock = SystemClock()
-# auto_error=False: a missing token raises NotAuthenticated, so every auth failure is the same 401
+# auto_error=False pra qualquer falha de token virar o mesmo 401 (NotAuthenticated)
 _bearer = HTTPBearer(auto_error=False)
 
 
 def get_clock() -> Clock:
-    # the tests swap it for a fake clock with app.dependency_overrides
+    # nos testes isso é trocado por um relógio falso (dependency_overrides)
     return _system_clock
 
 
@@ -97,7 +97,7 @@ ClaimServiceDep = Annotated[ClaimService, Depends(get_claim_service)]
 
 
 def get_token_service() -> TokenService:
-    # read on every call, like DATABASE_URL: the .env is loaded after this module is imported
+    # lido a cada chamada porque o .env só é carregado depois deste import
     return TokenService(os.environ["JWT_SECRET"], TOKEN_TTL)
 
 
@@ -127,5 +127,5 @@ def get_current_user(
     return auth.authenticate(credentials.credentials)
 
 
-# a route that takes this parameter only runs for a logged-in user
+# rota com esse parâmetro só roda com usuário logado
 CurrentUserDep = Annotated[User, Depends(get_current_user)]

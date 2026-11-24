@@ -19,7 +19,7 @@ jobs:
       run:
         working-directory: backend
 
-    # throwaway Postgres for the tests; the Neon databases are never touched
+    # Postgres descartável para os testes; os bancos do Neon nunca são tocados
     services:
       postgres:
         image: postgres:18

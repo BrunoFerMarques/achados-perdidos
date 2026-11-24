@@ -1,4 +1,4 @@
-# every model is imported here, so Alembic autogenerate sees all tables in Base.metadata
+# importa todos os models pro autogenerate do Alembic enxergar as tabelas
 from models.base import Base
 from models.category import Category
 from models.claim import Claim, ClaimAnswer

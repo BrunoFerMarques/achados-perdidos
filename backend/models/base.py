@@ -5,7 +5,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    # the names Postgres itself would give, e.g. users_pkey, items_user_id_fkey
+    # mesmos nomes que o Postgres daria (users_pkey, items_user_id_fkey...)
     metadata = MetaData(
         naming_convention={
             "pk": "%(table_name)s_pkey",
@@ -16,5 +16,5 @@ class Base(DeclarativeBase):
         }
     )
 
-    # Mapped[str] becomes TEXT and Mapped[datetime] becomes TIMESTAMPTZ
+    # Mapped[str] vira TEXT e Mapped[datetime] vira TIMESTAMPTZ
     type_annotation_map = {str: Text, datetime: DateTime(timezone=True)}

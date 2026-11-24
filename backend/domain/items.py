@@ -40,7 +40,7 @@ def transition(current: ItemStatus, target: ItemStatus) -> ItemStatus:
     return target
 
 
-# scope §5: the statuses that still take a new claim; the item is on a shelf or on its way to one
+# status que ainda aceitam reivindicação (na prateleira ou a caminho dela)
 CLAIMABLE_STATUSES = frozenset({ItemStatus.AVAILABLE, ItemStatus.IN_TRANSFER})
 
 

@@ -1,16 +1,16 @@
-"""Ownership verification (scope §7): how well a claimant's answers match the expected ones."""
+"""Verificação de posse: nota das respostas do reivindicante."""
 
 import unicodedata
 from collections.abc import Sequence
 
-# a typo is tolerated only in longer answers: a 4-digit serial number must be exact
+# só aceita erro de digitação em resposta com 5 letras ou mais (nº de série tem que ser exato)
 TYPO_TOLERANCE_MIN_LENGTH = 5
-# scope §12: below it the claim is rejected at once, otherwise an attendant reviews it
+# abaixo disso rejeita direto, acima vai pro atendente
 MIN_SCORE = 0.6
 
 
 def normalize(answer: str) -> str:
-    """Lowercase, no accents, punctuation as a separator and single spaces."""
+    """Deixa minúsculo, tira acento, troca pontuação por espaço e junta espaços repetidos."""
     decomposed = unicodedata.normalize("NFKD", answer.casefold())
     without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
     words_only = "".join(c if c.isalnum() else " " for c in without_accents)
@@ -25,7 +25,7 @@ def is_correct(given: str, expected: str) -> bool:
 
 
 def _one_edit_apart(a: str, b: str) -> bool:
-    """True if one swapped, missing or extra character turns `a` into `b`."""
+    """True se `a` e `b` diferem em uma letra (trocada, faltando ou sobrando)."""
     if abs(len(a) - len(b)) > 1:
         return False
     shorter, longer = sorted((a, b), key=len)
@@ -38,7 +38,7 @@ def _one_edit_apart(a: str, b: str) -> bool:
 
 
 def score(given: Sequence[str], expected: Sequence[str]) -> float:
-    """Share of correct answers, from 0 to 1. Both lists follow the order of the questions."""
+    """Fração de respostas certas (0 a 1). As listas estão na ordem das perguntas."""
     if not expected:
         raise ValueError("a verification needs at least one question")
     if len(given) != len(expected):

@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    # no length rules here: a wrong password is a 401, not a validation error
+    # sem regra de tamanho: senha errada é 401, não erro de validação
     password: str
 
 
