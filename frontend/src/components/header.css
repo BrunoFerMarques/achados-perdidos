@@ -1,0 +1,61 @@
+.header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 12px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--primary-dark);
+  font-size: 18px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.header nav a {
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.header nav a:hover {
+  background: var(--bg);
+}
+
+/* o NavLink põe a classe active no link da tela aberta */
+.header nav a.active {
+  background: var(--primary-soft);
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+/* o margin-left automático empurra a sessão para a direita */
+.session {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.session-name {
+  color: var(--muted);
+  font-size: 15px;
+}

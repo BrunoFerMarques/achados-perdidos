@@ -1,4 +1,10 @@
-import type { ClaimStatus } from './api/types'
+import type { ClaimStatus, Role } from './api/types'
+
+export const ROLE: Record<Role, string> = {
+  usuario: 'usuário',
+  atendente: 'atendente',
+  admin: 'admin',
+}
 
 // o reivindicante só vê o resultado, sem nota nem motivo
 export const CLAIM_STATUS: Record<ClaimStatus, string> = {

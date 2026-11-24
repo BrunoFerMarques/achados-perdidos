@@ -6,16 +6,11 @@ import { itemsApi } from '../api/items'
 import { usePoints } from '../api/points'
 import { CLAIMANTS } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
-import { MainMenu } from '../components/MainMenu'
-import { LoadState } from '../components/Page'
-
-// the API sends year-month-day; new Date() would read it as midnight UTC and show the day before
-function brDate(isoDate: string) {
-  return isoDate.split('-').reverse().join('/')
-}
+import { LoadState, Page } from '../components/Page'
+import { formatDate } from '../labels'
 
 export function HomePage() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { categories, locations, colors } = useCatalog()
   const { pointName } = usePoints()
 
@@ -43,25 +38,11 @@ export function HomePage() {
   const canClaim = !user || CLAIMANTS.includes(user.role)
 
   return (
-    <main className="page">
-      <header>
-        {user ? (
-          <>
-            <p>Olá, {user.name}!</p>
-            <MainMenu />
-            <Link to="/itens/novo">Registrar item achado</Link>
-            <button type="button" onClick={logout}>
-              Sair
-            </button>
-          </>
-        ) : (
-          <Link to="/login">Entrar</Link>
-        )}
-      </header>
-
-      <h1>Achados e Perdidos</h1>
-
-      <section>
+    <Page
+      title="Perdeu alguma coisa?"
+      subtitle="Veja o que já está guardado nos pontos de coleta e reivindique o que é seu."
+    >
+      <section className="card filters" aria-label="Filtros">
         <label>
           Buscar
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -93,28 +74,31 @@ export function HomePage() {
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </label>
         <label>
-          até
+          Até
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
       </section>
 
       <LoadState loading={loading} error={error} />
       {!loading && !error && items.length === 0 && <p>Nenhum item encontrado.</p>}
-      <ul>
+      <ul className="grid">
         {items.map((item) => (
-          <li key={item.id}>
+          <li key={item.id} className="card">
+            <span className="chip">{categories.nameOf(item.category_id)}</span>
             <strong>{item.public_description}</strong>
-            <p>
-              {categories.nameOf(item.category_id)} · {colors.nameOf(item.color_id)} · achado em{' '}
-              {locations.nameOf(item.location_id)}
-            </p>
-            <p>
-              {brDate(item.found_date)} · guardado em {pointName(item.collection_point_id)}
-            </p>
-            {canClaim && <Link to={`/itens/${item.id}/reivindicar`}>Reivindicar</Link>}
+            <span className="muted">
+              {colors.nameOf(item.color_id)} · achado em {locations.nameOf(item.location_id)}, dia{' '}
+              {formatDate(item.found_date)}
+            </span>
+            <span className="muted">Guardado em {pointName(item.collection_point_id)}</span>
+            {canClaim && (
+              <Link to={`/itens/${item.id}/reivindicar`} className="button primary">
+                Reivindicar
+              </Link>
+            )}
           </li>
         ))}
       </ul>
-    </main>
+    </Page>
   )
 }
