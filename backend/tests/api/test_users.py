@@ -32,7 +32,7 @@ def admin(signup):
     return signup(ADMIN, Role.ADMIN)
 
 
-# --- registering is public ---
+# --- o cadastro é público ---
 
 
 def test_create_user_returns_201_without_password(client):
@@ -92,7 +92,7 @@ def test_cannot_register_as_admin(client):
 
 
 def test_returns_503_when_database_is_down(client, monkeypatch):
-    # nothing listens on port 1, so the connection is refused right away
+    # nada escuta na porta 1, então a conexão é recusada na hora
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@127.0.0.1:1/none")
 
     response = client.post("/v1/users", json=MARIA)
@@ -101,7 +101,7 @@ def test_returns_503_when_database_is_down(client, monkeypatch):
     assert response.json() == {"detail": "Banco de dados indisponível"}
 
 
-# --- every other route needs a login ---
+# --- toda outra rota precisa de login ---
 
 PROTECTED_ROUTES = [
     ("GET", "/v1/users"),
@@ -122,7 +122,7 @@ def test_protected_route_without_token_returns_401(client, method, url):
     assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
-# --- a user manages their own account ---
+# --- um usuário cuida da própria conta ---
 
 
 def test_user_gets_own_account(client, maria):
@@ -197,7 +197,7 @@ def test_deleted_user_email_can_be_used_again(client, maria):
     assert response.status_code == 201
 
 
-# --- but not anyone else's ---
+# --- mas não da dos outros ---
 
 
 @pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
@@ -212,7 +212,7 @@ def test_user_cannot_touch_another_account(client, maria, joao, method):
 
 
 def test_user_gets_403_not_404_for_an_unknown_account(client, maria):
-    # the same answer for any id but your own, so nobody can probe which ids exist
+    # mesma resposta pra qualquer id que não seja o seu, pra ninguém descobrir quais ids existem
     response = client.get("/v1/users/999", headers=maria.headers)
 
     assert response.status_code == 403
@@ -229,7 +229,7 @@ def test_only_admin_lists_users(client, signup, role):
     assert response.json() == PERMISSION_DENIED
 
 
-# --- an admin manages every account ---
+# --- um admin cuida de todas as contas ---
 
 
 def test_admin_lists_users_in_creation_order(client, admin, signup):
@@ -291,7 +291,7 @@ def test_unknown_user_returns_404_to_admin(client, admin, method, payload):
     assert response.json() == USER_NOT_FOUND
 
 
-# --- only an admin changes roles (scope §11: the admin manages the attendants) ---
+# --- só admin muda papel ---
 
 
 def test_admin_changes_role_of_another_user(client, admin, maria):
@@ -301,7 +301,7 @@ def test_admin_changes_role_of_another_user(client, admin, maria):
 
     assert response.status_code == 200
     assert response.json() == {**maria.body, "role": "atendente"}
-    # the token only carries the id, so the new role counts from the next request on
+    # o token só leva o id, então o papel novo vale a partir do próximo pedido
     assert client.get("/v1/auth/me", headers=maria.headers).json()["role"] == "atendente"
 
 
@@ -351,7 +351,7 @@ def test_change_role_of_unknown_user_returns_404(client, admin):
     assert response.json() == USER_NOT_FOUND
 
 
-# --- only an admin unblocks a user (RN16) ---
+# --- só admin desbloqueia ---
 
 
 def unblocked_at(user_id: int) -> datetime | None:
@@ -370,7 +370,7 @@ def test_admin_unblocks_a_user(client, admin, maria, clock):
     response = client.post(f"/v1/users/{maria.id}/unblock", headers=admin.headers)
 
     assert response.status_code == 204
-    # RN16: the failed claims before this moment no longer count toward a block
+    # as falhas antes deste momento não contam mais pro bloqueio
     assert unblocked_at(maria.id) == clock.now()
 
 

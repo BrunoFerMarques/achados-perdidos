@@ -1,4 +1,4 @@
-"""The current time as a dependency, so no rule reads the system clock directly (scope §15)."""
+"""Relógio injetável, pra nenhuma regra chamar datetime.now() direto."""
 
 from datetime import UTC, datetime
 from typing import Protocol
@@ -9,7 +9,7 @@ class Clock(Protocol):
 
 
 class SystemClock:
-    """The real clock, used outside the tests."""
+    """Relógio real, usado fora dos testes."""
 
     def now(self) -> datetime:
         return datetime.now(UTC)

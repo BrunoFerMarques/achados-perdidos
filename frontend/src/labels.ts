@@ -1,6 +1,6 @@
 import type { ClaimStatus } from './api/types'
 
-// RN21: the claimant only sees the result, never the score or the reason
+// o reivindicante só vê o resultado, sem nota nem motivo
 export const CLAIM_STATUS: Record<ClaimStatus, string> = {
   pendente: 'Em análise',
   aprovada: 'Aprovada: aguardando retirada',
@@ -19,7 +19,7 @@ export function isPast(iso: string): boolean {
 }
 
 export function formatDate(isoDate: string): string {
-  // a plain date (YYYY-MM-DD): read as UTC midnight, `new Date` would move it a day back here
+  // data sem hora (AAAA-MM-DD): o `new Date` leria como meia-noite UTC e voltaria um dia aqui
   const [year, month, day] = isoDate.split('-')
   return `${day}/${month}/${year}`
 }

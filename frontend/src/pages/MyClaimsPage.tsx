@@ -6,11 +6,11 @@ import { FeedbackLine } from '../components/FeedbackLine'
 import { LoadState, Page } from '../components/Page'
 import { CLAIM_STATUS, formatDateTime, isPast } from '../labels'
 
-// the active claims (scope §6), the only ones the claimant can still cancel
+// só as ativas podem ser canceladas
 const CANCELLABLE: readonly ClaimStatus[] = ['pendente', 'aprovada']
 
-/** The claimant's claims (RN53): the status, the collection point and, once approved, the
- * pickup code with its deadline. Nothing about the score or the finder. */
+/** Reivindicações do usuário: status, ponto de coleta e, depois de aprovada, o código de
+ * retirada com o prazo. Nada de nota nem de dados do achador. */
 export function MyClaimsPage() {
   const { data: claims, error, loading, reload } = useLoad(claimsApi.mine)
   const { pointName } = usePoints()

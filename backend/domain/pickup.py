@@ -1,4 +1,4 @@
-"""Pickup code (RN44 to RN46): what the claimant shows at the collection point to take the item."""
+"""Código de retirada."""
 
 import secrets
 import string
@@ -13,29 +13,28 @@ from domain.errors import (
     PickupCodeExpired,
 )
 
-# scope §12
 CODE_LENGTH = 6
 PICKUP_WINDOW = timedelta(days=5)
 ALPHABET = string.ascii_uppercase + string.digits
 
 
 def generate_code() -> str:
-    # secrets, not random: whoever guesses the code walks away with the item
+    # secrets em vez de random porque quem acerta o código leva o item
     return "".join(secrets.choice(ALPHABET) for _ in range(CODE_LENGTH))
 
 
 def normalize_code(code: str) -> str:
-    # the attendant types what the claimant shows: case and stray spaces don't matter
+    # ignora maiúsculas e espaços nas pontas
     return code.strip().upper()
 
 
 def pickup_deadline(approved_at: datetime) -> datetime:
-    # RN44: the code is valid until the end of the pickup window, counted from the approval
+    # vale por 5 dias a partir da aprovação
     return approved_at + PICKUP_WINDOW
 
 
 def code_matches(code: str | None, typed: str) -> bool:
-    # bytes: compare_digest refuses str with non-ASCII characters, and the attendant types anything
+    # compare_digest com str quebra se tiver acento, por isso compara em bytes
     if code is None:
         return False
     return secrets.compare_digest(normalize_code(typed).encode(), code.encode())
@@ -52,24 +51,24 @@ def complete_pickup(
     document_checked: bool,
     now: datetime,
 ) -> ClaimStatus:
-    """Checks the pickup of a claim and returns its new status. `code` and `deadline` are None
-    when the claim was never approved; `typed_code` is what the claimant showed at the counter;
-    `point_id` is where the attendant is validating it; `now` comes from the caller, never from
-    the system clock."""
+    """Valida a retirada e devolve o novo status da reivindicação.
+
+    `code` e `deadline` vêm None se ela nunca foi aprovada. `point_id` é o balcão onde o
+    atendente está, e `now` vem de quem chama."""
     if not code_matches(code, typed_code):
-        # first: a wrong code says nothing about the claim, not even whether it was used
+        # confere o código antes de tudo pra não revelar se ele já foi usado
         raise InvalidPickupCode()
     if status == ClaimStatus.COMPLETED:
-        raise PickupCodeAlreadyUsed()  # RN44: single use
+        raise PickupCodeAlreadyUsed()  # o código só vale uma vez
     if status == ClaimStatus.EXPIRED:
         raise PickupCodeExpired()
     if status != ClaimStatus.APPROVED or deadline is None:
-        # a cancelled claim keeps its code in the database, but the code no longer opens anything
+        # cancelada ainda tem o código salvo, mas ele não vale mais
         raise InvalidPickupCode()
     if now >= deadline:
-        raise PickupCodeExpired()  # the scheduled task may not have expired the claim yet
+        raise PickupCodeExpired()  # a tarefa de expiração pode ainda não ter rodado
     if point_id != item_point_id:
-        raise ItemNotAtThisPoint()  # RN45
+        raise ItemNotAtThisPoint()
     if not document_checked:
-        raise DocumentNotChecked()  # RN46
+        raise DocumentNotChecked()
     return transition(status, ClaimStatus.COMPLETED)

@@ -14,7 +14,7 @@ class CollectionPointRepository(Repository[CollectionPoint]):
         return self._session.scalars(stmt).all()
 
     def list_of_attendant(self, user_id: int) -> Sequence[CollectionPoint]:
-        # RN40: the points the attendant is linked to, by name
+        # pontos em que o atendente está vinculado, por nome
         stmt = (
             select(CollectionPoint)
             .join(CollectionPointAttendant, CollectionPointAttendant.point_id == CollectionPoint.id)

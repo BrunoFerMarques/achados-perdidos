@@ -31,10 +31,10 @@ def empty_users(test_database):
 
 @dataclass
 class Account:
-    """A registered user with a logged-in session."""
+    """Um usuário cadastrado, com uma sessão logada."""
 
-    body: dict  # the user as the API returns it
-    headers: dict[str, str]  # send these to act as this user
+    body: dict  # o usuário como a API devolve
+    headers: dict[str, str]  # envie estes para agir como este usuário
 
     @property
     def id(self) -> int:
@@ -43,12 +43,12 @@ class Account:
 
 @pytest.fixture
 def signup(client):
-    """Register through the API and log in. Returns signup(data, role=Role.USUARIO) -> Account."""
+    """Cadastra pela API e faz login. Devolve signup(data, role=Role.USUARIO) -> Account."""
 
     def signup(data: dict, role: Role = Role.USUARIO) -> Account:
         body = client.post("/v1/users", json=data).json()
         if role != Role.USUARIO:
-            # the API never registers anyone above usuario, so the test sets the role directly
+            # a API nunca cadastra ninguém acima de usuario, então o teste muda o papel direto
             with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
                 conn.execute("UPDATE users SET role = %s WHERE id = %s", (role, body["id"]))
             body = {**body, "role": role}
@@ -60,7 +60,7 @@ def signup(client):
 
 
 class FakeClock:
-    """A clock that only moves when the test moves it."""
+    """Um relógio que só anda quando o teste manda."""
 
     def __init__(self, now: datetime):
         self.current = now
@@ -71,7 +71,7 @@ class FakeClock:
 
 @pytest.fixture
 def clock():
-    """Swap the API's clock for a FakeClock; move it with `clock.current += timedelta(...)`."""
+    """Troca o relógio da API por um FakeClock; ande com `clock.current += timedelta(...)`."""
     fake = FakeClock(datetime(2026, 11, 16, 12, 0, tzinfo=UTC))
     app.dependency_overrides[get_clock] = lambda: fake
     yield fake

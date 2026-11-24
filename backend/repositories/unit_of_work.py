@@ -22,20 +22,20 @@ from repositories.location import LocationRepository
 from repositories.lost_report import LostReportRepository
 from repositories.user import UserRepository
 
-# unique constraints whose violation is a business error, not a bug
+# constraints únicas cuja violação é erro de negócio, não bug
 CONFLICTS: dict[str, type[ConflictError]] = {
     "users_email_key": EmailAlreadyExists,
     "collection_points_name_key": CollectionPointNameExists,
     # the same attendant linked twice to the same point
     "collection_point_attendants_pkey": AttendantAlreadyLinked,
-    # two requests at once that the service checks couldn't tell apart (RN11, RN13)
+    # pedidos simultâneos que passaram juntos pela checagem do service
     "claims_claimant_item_key": ItemAlreadyClaimed,
     "claims_approved_item_key": ItemNotAvailable,
 }
 
 
 class UnitOfWork:
-    """One business transaction: every repository shares the session and commit saves it all."""
+    """Uma transação: os repositories dividem a sessão e o commit salva tudo junto."""
 
     def __init__(self, session: Session):
         self._session = session

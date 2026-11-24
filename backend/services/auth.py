@@ -15,14 +15,14 @@ class AuthService:
 
     def login(self, email: str, password: str) -> str:
         user = self._uow.users.get_by_email(email)
-        # one message for both cases, so the response doesn't say which part was wrong
+        # mesma mensagem nos dois casos pra não entregar qual parte estava errada
         if user is None or not self._password_matches(user, password):
             raise InvalidCredentials()
         return self._tokens.issue(user.id)
 
     def authenticate(self, token: str) -> User:
         user = self._uow.users.get(self._tokens.user_id(token))
-        # the token is still signed after the account is deleted
+        # o token continua válido mesmo depois que a conta é excluída
         if user is None:
             raise InvalidToken()
         return user

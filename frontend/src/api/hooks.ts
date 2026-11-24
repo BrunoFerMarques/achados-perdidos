@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { errorText } from './client'
 
-/** Loads once on mount, and again on reload(). `load` must be stable (a module function or a
- * useCallback), or it loads on every render. An answer that arrives after a newer request is
- * dropped, so the screen never shows the older one. */
+/** Carrega quando a tela abre e de novo no reload(). O `load` tem que ser estável (função de
+ * módulo ou useCallback), senão carrega a cada render. Se uma resposta antiga chegar depois de
+ * uma mais nova, ela é ignorada. */
 export function useLoad<T>(load: () => Promise<T>) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const latest = useRef(0)
 
-  // the state only changes when the request answers, never synchronously inside the effect
+  // só mexe no estado quando a resposta chega, nunca direto dentro do efeito
   const run = useCallback(() => {
     const request = ++latest.current
     const current = () => request === latest.current
@@ -40,8 +40,8 @@ export function useLoad<T>(load: () => Promise<T>) {
 
 export type Feedback = { ok: boolean; text: string }
 
-/** One action at a time (approve, cancel, send...): `pending` disables the buttons while it
- * runs, and `feedback` holds the success text or the API's error. run() says if it worked. */
+/** Uma ação por vez (aprovar, cancelar, enviar...). `pending` desabilita os botões enquanto
+ * roda e `feedback` guarda a mensagem de sucesso ou o erro. O run() devolve se deu certo. */
 export function useAction() {
   const [pending, setPending] = useState(false)
   const [feedback, setFeedback] = useState<Feedback | null>(null)

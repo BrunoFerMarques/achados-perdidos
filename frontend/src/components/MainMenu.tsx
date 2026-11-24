@@ -3,7 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { CLAIMANTS, STAFF } from '../auth/roles'
 import './page.css'
 
-/** The links of the home page, by role (scope §11). The API still checks every action. */
+/** Links da página inicial de acordo com o papel. A API continua checando cada ação. */
 export function MainMenu() {
   const { user } = useAuth()
   if (!user) return null

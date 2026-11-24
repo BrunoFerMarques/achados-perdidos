@@ -7,13 +7,13 @@ from db import get_engine
 
 @pytest.fixture(autouse=True)
 def use_test_database(test_database):
-    """Every test here touches a database, so make sure it is the test one."""
+    """Todo teste daqui usa um banco, então confere se é o de teste."""
 
 
 @pytest.fixture
 def db():
-    # everything a test writes is rolled back, so the test database stays clean;
-    # a commit inside the test only releases a savepoint
+    # tudo que o teste grava é desfeito no fim, e um commit dentro do teste só libera um
+    # savepoint
     with get_engine().connect() as conn:
         transaction = conn.begin()
         with Session(conn, join_transaction_mode="create_savepoint") as session:
@@ -23,7 +23,7 @@ def db():
 
 @pytest.fixture
 def sent_sql(db):
-    """The SQL statements the session sends from here on."""
+    """Os comandos SQL que a sessão envia daqui em diante."""
     statements: list[str] = []
 
     def record(conn, cursor, statement, parameters, context, executemany):

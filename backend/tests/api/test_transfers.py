@@ -1,4 +1,4 @@
-# RN05: an item sent from one collection point to another, and the claims waiting for it (RN41)
+# transferência de item entre pontos de coleta e o que acontece com as reivindicações
 from datetime import datetime, timedelta
 
 import pytest
@@ -17,7 +17,7 @@ ANSWERS = ["Azul", "Banda Queen", "8F3A"]
 
 
 def iso(at: datetime) -> str:
-    # how the API writes a UTC time
+    # como a API escreve um horário UTC
     return at.isoformat().replace("+00:00", "Z")
 
 
@@ -28,13 +28,13 @@ def admin(signup):
 
 @pytest.fixture
 def maria(signup):
-    """Finds the items."""
+    """Acha os itens."""
     return signup(MARIA)
 
 
 @pytest.fixture
 def joao(signup):
-    """Claims them."""
+    """Reivindica os itens."""
     return signup(JOAO)
 
 
@@ -65,19 +65,19 @@ def destination(client, admin):
 
 @pytest.fixture
 def ana(client, signup, admin, origin):
-    """Works at the origin."""
+    """Trabalha na origem."""
     return attendant_at(client, signup, admin, origin, ANA)
 
 
 @pytest.fixture
 def carlos(client, signup, admin, destination):
-    """Works at the destination."""
+    """Trabalha no destino."""
     return attendant_at(client, signup, admin, destination, CARLOS)
 
 
 @pytest.fixture
 def item_body(client, origin):
-    """A valid body for POST /v1/items: the first category, location and color, at the origin."""
+    """Um corpo válido para POST /v1/items: a primeira categoria, local e cor, na origem."""
 
     def first(url: str) -> int:
         return client.get(url).json()[0]["id"]
@@ -99,7 +99,7 @@ def item_body(client, origin):
 
 @pytest.fixture
 def register(client, maria, item_body):
-    """register() -> item id: Maria registers an item at the origin, not received yet."""
+    """register() -> id do item: a Maria registra um item na origem, ainda não recebido."""
 
     def register() -> int:
         return client.post(URL, json=item_body, headers=maria.headers).json()["id"]
@@ -109,7 +109,7 @@ def register(client, maria, item_body):
 
 @pytest.fixture
 def item(client, register, ana, origin, clock):
-    """On the shelf at the origin: received by Ana."""
+    """Na prateleira da origem: recebido pela Ana."""
     item_id = register()
     client.post(
         f"{URL}/{item_id}/receive", json={"collection_point_id": origin}, headers=ana.headers
@@ -141,7 +141,7 @@ def claim(client, account, item_id: int):
     )
 
 
-# --- sending and confirming the arrival ---
+# --- enviando e confirmando a chegada ---
 
 
 @pytest.mark.parametrize(
@@ -160,7 +160,7 @@ def test_rn05_origin_attendant_sends_the_item(client, ana, item, origin, destina
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "em_transferencia"
-    # it belongs to the origin until it arrives
+    # ele é da origem até chegar
     assert body["collection_point_id"] == origin
     assert body["transfer_to_id"] == destination
 
@@ -274,7 +274,7 @@ def test_confirming_the_arrival_twice_is_409(client, ana, carlos, item, destinat
 
 
 def test_rn02_reserved_item_is_not_received_again(client, ana, joao, item, origin, clock):
-    # receiving it would put it back on the shelf with the approved claim still waiting for it
+    # receber de novo colocaria o item na prateleira com a reivindicação aprovada esperando
     pending = claim(client, joao, item).json()
     client.post(f"/v1/claims/{pending['id']}/approve", headers=ana.headers)
 
@@ -289,7 +289,7 @@ def test_rn02_reserved_item_is_not_received_again(client, ana, joao, item, origi
 def test_item_in_transfer_is_not_received_at_any_counter(
     client, ana, carlos, item, destination, clock
 ):
-    # it arrives through /arrive at its destination, not through a second receipt
+    # ele chega pelo /arrive, não por um segundo recebimento
     send(client, ana, item, destination)
 
     response = client.post(
@@ -300,7 +300,7 @@ def test_item_in_transfer_is_not_received_at_any_counter(
     assert last_event(client, carlos, item) == "transferencia_saida"
 
 
-# --- who may do it (RN41) ---
+# --- quem pode fazer ---
 
 
 def test_rn41_destination_attendant_cannot_send_an_item_from_the_origin(
@@ -321,7 +321,7 @@ def test_rn41_origin_attendant_cannot_confirm_the_arrival(client, ana, item, des
 
 
 def test_users_cannot_send_or_confirm(client, maria, ana, item, destination, clock):
-    # not even the finder: moving the object is the counter's job
+    # nem o achador: mover o objeto é trabalho do balcão
     assert send(client, maria, item, destination).status_code == 403
     send(client, ana, item, destination)
     assert arrive(client, maria, item).status_code == 403
@@ -332,17 +332,17 @@ def test_admin_sends_and_confirms_at_any_point(client, admin, item, destination,
     assert arrive(client, admin, item).status_code == 200
 
 
-# --- the claims waiting for the item ---
+# --- as reivindicações que esperam pelo item ---
 
 
 def test_item_in_transfer_still_takes_claims(client, ana, joao, item, origin, destination, clock):
-    # scope §5: on its way to a shelf, it still shows in the listing
+    # a caminho de outra prateleira, ele continua aparecendo na listagem
     send(client, ana, item, destination)
 
     response = claim(client, joao, item)
 
     assert response.status_code == 201
-    # the item still belongs to the origin until it arrives
+    # o item continua sendo da origem até chegar
     assert response.json()["collection_point_id"] == origin
 
 
@@ -352,13 +352,13 @@ def test_pending_claims_follow_the_item_to_the_destination(
     pending = claim(client, joao, item).json()
     send(client, ana, item, destination)
 
-    # on its way, nobody approves it: the item isn't on a shelf (RN13)
+    # a caminho ninguém aprova, o item não está numa prateleira
     response = client.post(f"/v1/claims/{pending['id']}/approve", headers=ana.headers)
     assert response.status_code == 409
 
     arrive(client, carlos, item)
 
-    # once there, the claim is reviewed at the destination, and the claimant is told so (RN53)
+    # quando chega, quem analisa é o destino, e o reivindicante vê o novo ponto
     assert client.get("/v1/claims/pending", headers=ana.headers).json() == []
     assert [c["id"] for c in client.get("/v1/claims/pending", headers=carlos.headers).json()] == [
         pending["id"]
@@ -372,7 +372,7 @@ def test_pending_claims_follow_the_item_to_the_destination(
 def test_origin_may_still_reject_a_pending_claim_on_the_way(
     client, ana, joao, item, destination, clock
 ):
-    # reviewing the answers doesn't need the object; approving does (RN13)
+    # analisar as respostas não depende do objeto, aprovar sim
     pending = claim(client, joao, item).json()
     send(client, ana, item, destination)
 
@@ -383,14 +383,14 @@ def test_origin_may_still_reject_a_pending_claim_on_the_way(
 
 
 def test_rn53_the_finders_item_does_not_carry_the_destination(client, maria, item_body, clock):
-    # ItemOut, what the finder gets, has no transfer_to_id; only ItemTransferOut, for the staff
+    # o ItemOut do achador não tem transfer_to_id, só o ItemTransferOut da equipe tem
     response = client.post(URL, json=item_body, headers=maria.headers)
 
     assert response.status_code == 201
     assert "transfer_to_id" not in response.json()
 
 
-# --- the list of items on their way ---
+# --- lista dos itens a caminho ---
 
 
 def test_both_ends_see_the_item_on_its_way(
@@ -408,7 +408,7 @@ def test_both_ends_see_the_item_on_its_way(
             origin,
             destination,
         )
-    # RN41: an attendant of a third point doesn't follow it
+    # atendente de um terceiro ponto não vê
     assert client.get(f"{URL}/transfers", headers=elsewhere.headers).json() == []
 
 

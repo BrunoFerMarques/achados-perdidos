@@ -7,8 +7,8 @@ import { FeedbackLine } from '../components/FeedbackLine'
 import { LoadState, Page } from '../components/Page'
 import { formatDate } from '../labels'
 
-/** Moving an item between collection points (RN05): the origin sends it, the destination
- * confirms the arrival. The API checks that each attendant works at the right end (RN41). */
+/** Transferência entre pontos: a origem envia e o destino confirma a chegada. A API confere
+ * se cada atendente está na ponta certa. */
 export function TransfersPage() {
   const myPoints = useLoad(pointsApi.mine)
   const transfers = useLoad(transfersApi.list)

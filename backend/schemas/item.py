@@ -58,13 +58,13 @@ class ItemOut(BaseModel):
 
 
 class TransferIn(BaseModel):
-    # RN05: the destination; the origin is wherever the item is now
+    # destino (a origem é onde o item está agora)
     transfer_to_id: int
 
 
 class ItemTransferOut(ItemOut):
-    """For the staff following an item between points (RN05): where it is going, while on its
-    way. The finder's ItemOut doesn't carry it (RN53)."""
+    """Item em transferência visto pela equipe, com o destino. O ItemOut do achador não traz
+    esse campo."""
 
     transfer_to_id: int | None
 

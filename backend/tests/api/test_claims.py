@@ -1,4 +1,4 @@
-# Claims (scope §6, §7), the attendant's review (RN22, RN41) and the pickup (RN14, RN44 to RN46)
+# reivindicação pela API: criar, cancelar, analisar e retirar no balcão
 import os
 from datetime import timedelta
 
@@ -19,7 +19,7 @@ WRONG = ["verde", "nenhum", "0000"]
 
 
 def set_item_status(item_id: int, status: str) -> None:
-    # straight into any status, without walking the item through receipt or transfer
+    # coloca o item direto no status, sem passar pelo recebimento ou pela transferência
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         conn.execute("UPDATE items SET status = %s WHERE id = %s", (status, item_id))
 
@@ -36,13 +36,13 @@ def admin(signup):
 
 @pytest.fixture
 def maria(signup):
-    """Finds the items."""
+    """Acha os itens."""
     return signup(MARIA)
 
 
 @pytest.fixture
 def joao(signup):
-    """Claims them."""
+    """Reivindica os itens."""
     return signup(JOAO)
 
 
@@ -59,7 +59,7 @@ def point(client, admin):
 
 @pytest.fixture
 def attendant(client, signup, admin, point):
-    """An attendant who works at `point`."""
+    """Atendente que trabalha em `point`."""
     account = signup(ANA, Role.ATENDENTE)
     client.post(
         f"/v1/collection-points/{point}/attendants",
@@ -71,7 +71,7 @@ def attendant(client, signup, admin, point):
 
 @pytest.fixture
 def other_attendant(client, signup, admin):
-    """An attendant who works at another point."""
+    """Atendente que trabalha em outro ponto."""
     account = signup(CARLOS, Role.ATENDENTE)
     other = new_point(client, admin, "Restaurante")
     client.post(
@@ -84,7 +84,7 @@ def other_attendant(client, signup, admin):
 
 @pytest.fixture
 def register(client, maria, point):
-    """register(status="disponivel") -> item id: Maria registers an item at `point`."""
+    """register(status="disponivel") -> id do item registrado pela Maria em `point`."""
 
     def first(url: str) -> int:
         return client.get(url).json()[0]["id"]
@@ -120,7 +120,7 @@ def claim(client, account, item_id: int, answers: list[str] = RIGHT):
     return client.post(URL, json={"item_id": item_id, "answers": answers}, headers=account.headers)
 
 
-# --- making a claim ---
+# --- criando reivindicação ---
 
 
 def test_claim_with_enough_right_answers_goes_to_review(client, joao, item, point, clock):
@@ -135,14 +135,14 @@ def test_claim_with_enough_right_answers_goes_to_review(client, joao, item, poin
 
 
 def test_claim_tolerates_case_accents_and_one_typo(client, joao, item, clock):
-    # §7: "banda quen" is one character away from "Banda Queen"
+    # "banda quen" está a uma letra de "Banda Queen"
     response = claim(client, joao, item, ["AZUL", "banda quen", "8f3a"])
 
     assert response.json()["status"] == "pendente"
 
 
 def test_claim_below_the_minimum_score_is_rejected_at_once(client, joao, item, clock):
-    # 1 of 3 right is below 60%
+    # 1 de 3 certas fica abaixo de 60%
     response = claim(client, joao, item, ["azul", "nenhum", "0000"])
 
     assert response.status_code == 201
@@ -170,7 +170,7 @@ def questions_of(client, account, item_id: int):
 
 
 def test_claimant_gets_the_questions_without_the_answers(client, joao, item):
-    # RN23: the form shows each question in order, never the expected answer
+    # o formulário mostra as perguntas em ordem e nunca a resposta esperada
     response = questions_of(client, joao, item)
 
     assert response.status_code == 200
@@ -200,7 +200,7 @@ def test_form_of_an_unknown_item_is_404(client, joao):
 
 @pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
 def test_staff_get_403_not_404_for_the_form_of_an_unknown_item(client, signup, role):
-    # the role is checked before the item is looked up
+    # o papel é checado antes de buscar o item
     response = questions_of(client, signup(JOAO, role), 999)
 
     assert response.status_code == 403
@@ -235,7 +235,6 @@ def test_every_claim_route_requires_login(client, method, url):
 
 @pytest.mark.parametrize("role", [Role.ATENDENTE, Role.ADMIN])
 def test_only_users_claim(client, signup, item, role, clock):
-    # scope §11
     account = signup(JOAO, role)
 
     response = claim(client, account, item)
@@ -283,7 +282,7 @@ def test_answers_outside_2_to_5_are_422(client, joao, item, count, clock):
 
 
 def test_one_answer_per_question_or_422(client, joao, item, clock):
-    # the item has 3 questions
+    # o item tem 3 perguntas
     response = claim(client, joao, item, ["azul", "banda queen"])
 
     assert response.status_code == 422
@@ -291,7 +290,7 @@ def test_one_answer_per_question_or_422(client, joao, item, clock):
 
 
 def test_rn10_own_item_is_403_before_the_answer_count(client, maria, item, clock):
-    # the item is checked before the answers, like the form does: 403, not 422
+    # o item é checado antes das respostas, igual no formulário (403 e não 422)
     response = claim(client, maria, item, ["azul", "banda queen"])
 
     assert response.status_code == 403
@@ -309,7 +308,7 @@ def test_blank_answer_is_allowed_and_counts_as_wrong(client, joao, item, clock):
     response = claim(client, joao, item, ["azul", "", "8F3A"])
 
     assert response.status_code == 201
-    assert response.json()["status"] == "pendente"  # 2 of 3 is enough
+    assert response.json()["status"] == "pendente"  # 2 de 3 bastam
 
 
 @pytest.mark.parametrize(("length", "code"), [(500, 201), (501, 422)])
@@ -319,7 +318,7 @@ def test_answers_have_at_most_500_characters(client, joao, item, length, code, c
     assert response.status_code == code
 
 
-# --- RN11 and RN12: how many claims ---
+# --- quantas reivindicações dá pra ter ---
 
 
 def test_rn11_one_active_claim_per_item(client, joao, item, clock):
@@ -348,7 +347,7 @@ def test_rn11_claim_again_after_cancelling(client, joao, item, clock):
 
 
 def test_rn11_another_user_may_claim_an_item_already_claimed(client, signup, joao, item, clock):
-    # the limit is per user and item: whoever answers right still gets reviewed
+    # o limite é por usuário e item, então quem responde certo ainda vai pra análise
     claim(client, joao, item)
 
     response = claim(client, signup(CARLOS), item)
@@ -396,7 +395,7 @@ def test_rn12_cancelling_a_claim_frees_a_slot(client, joao, register, clock):
 
 
 def test_rn12_user_at_the_limit_still_gets_the_form(client, joao, register, clock):
-    # RN12 is left to the claim itself: the user may cancel another one before sending it
+    # o limite de ativas fica pra hora de enviar, já que dá pra cancelar outra antes
     for _ in range(3):
         claim(client, joao, register())
 
@@ -406,7 +405,7 @@ def test_rn12_user_at_the_limit_still_gets_the_form(client, joao, register, cloc
     assert [q["position"] for q in response.json()] == [1, 2, 3]
 
 
-# --- RN15 and RN16: blocking after failed claims ---
+# --- bloqueio depois de falhas ---
 
 
 def fail_three_times(client, joao, register):
@@ -484,7 +483,7 @@ def test_rn16_admin_unblock_lets_the_user_claim_again(client, admin, joao, regis
     [(timedelta(days=30) - timedelta(seconds=1), 403), (timedelta(days=30), 201)],
 )
 def test_rn15_only_failures_within_30_days_block(client, joao, register, gap, code, clock):
-    # the failure times come from the injected clock; one 30 days old has left the window
+    # as datas vêm do relógio injetável, e uma falha de 30 dias atrás já saiu da janela
     claim(client, joao, register(), WRONG)
     claim(client, joao, register(), WRONG)
     clock.current += gap
@@ -495,7 +494,7 @@ def test_rn15_only_failures_within_30_days_block(client, joao, register, gap, co
     assert response.status_code == code
 
 
-# --- my claims and cancelling ---
+# --- minhas reivindicações e cancelamento ---
 
 
 def test_my_claims_lists_only_mine_newest_first(client, signup, joao, register, clock):
@@ -527,7 +526,7 @@ def test_cancelling_an_approved_claim_puts_the_item_back(client, joao, attendant
     response = client.post(f"{URL}/{pending['id']}/cancel", headers=joao.headers)
 
     assert response.json()["status"] == "cancelada"
-    # RN44: the code of a cancelled claim no longer opens anything, so it isn't shown
+    # código de reivindicação cancelada não vale mais, então nem aparece
     assert response.json()["pickup_code"] is None
     assert item_status(item) == "disponivel"
 
@@ -550,7 +549,7 @@ def test_rn21_rn53_claimant_sees_only_the_status_the_point_and_the_code(
 
     [mine] = client.get(f"{URL}/me", headers=joao.headers).json()
 
-    # no score, no reason, no answers and nothing about the finder
+    # sem nota, sem motivo, sem respostas e nada do achador
     assert mine == {
         "id": pending["id"],
         "item_id": item,
@@ -589,7 +588,7 @@ def test_cancelling_a_rejected_claim_is_409(client, joao, item, clock):
     assert response.status_code == 409
 
 
-# --- the attendant's review ---
+# --- análise do atendente ---
 
 
 def test_rn22_attendant_sees_score_and_answers_next_to_the_expected(
@@ -638,7 +637,7 @@ def test_rn41_attendant_without_points_sees_no_pending_claims(client, signup, jo
 
 
 def test_admin_approves_a_claim_at_any_point(client, admin, joao, item, clock):
-    # scope §11: the admin reviews at every point without being linked to any
+    # o admin analisa em qualquer ponto sem estar vinculado
     pending = claim(client, joao, item).json()
 
     response = client.post(f"{URL}/{pending['id']}/approve", headers=admin.headers)
@@ -655,7 +654,7 @@ def test_pending_list_leaves_out_rejected_claims(client, joao, attendant, item, 
 
 
 def test_attendant_never_reviews_their_own_claim(client, signup, admin, point, item, clock):
-    # claimed as a user, then promoted and linked to the item's point
+    # reivindicou como usuário, depois foi promovido e vinculado ao ponto do item
     account = signup(CARLOS)
     pending = claim(client, account, item).json()
     client.patch(f"/v1/users/{account.id}/role", json={"role": "atendente"}, headers=admin.headers)
@@ -689,7 +688,7 @@ def test_rn13_approval_reserves_the_item_and_gives_a_pickup_code(
     assert "pickup_code" not in response.json()
     assert item_status(item) == "reservado"
     [mine] = client.get(f"{URL}/me", headers=joao.headers).json()
-    # RN44: 6 alphanumeric characters, valid for 5 days from the approval
+    # 6 letras ou números, válido por 5 dias depois da aprovação
     assert len(mine["pickup_code"]) == 6
     assert mine["pickup_code"].isalnum()
     assert mine["pickup_deadline"] == (clock.now() + timedelta(days=5)).isoformat().replace(
@@ -782,11 +781,11 @@ def test_unknown_claim_is_404(client, admin, action):
     assert response.status_code == 404
 
 
-# --- the pickup at the counter (RN14, RN44 to RN46) ---
+# --- retirada no balcão ---
 
 
 def approved(client, account, attendant, item_id: int) -> tuple[int, str]:
-    """`account` claims the item and the attendant approves it: the claim id and its pickup code."""
+    """`account` reivindica o item e o atendente aprova: o id e o código de retirada."""
     claim_id = claim(client, account, item_id).json()["id"]
     assert client.post(f"{URL}/{claim_id}/approve", headers=attendant.headers).status_code == 200
     mine = client.get(f"{URL}/me", headers=account.headers).json()
@@ -814,7 +813,7 @@ def test_pickup_returns_the_item_and_completes_the_claim(
     assert item_status(item) == "devolvido"
     [mine] = client.get(f"{URL}/me", headers=joao.headers).json()
     assert mine["status"] == "concluida"
-    # RN44: a used code opens nothing, so the claimant no longer sees it
+    # código usado não vale mais, então some da tela do reivindicante
     assert mine["pickup_code"] is None
 
 
@@ -896,7 +895,7 @@ def test_rn44_code_expires_5_days_after_the_approval(client, joao, attendant, it
 def test_rn45_code_is_only_accepted_at_the_point_where_the_item_is(
     client, admin, joao, attendant, item, point, clock
 ):
-    # the attendant works at two points; the item is at the first one
+    # o atendente trabalha em dois pontos; o item está no primeiro
     second = new_point(client, admin, "Ginásio")
     client.post(
         f"/v1/collection-points/{second}/attendants",
@@ -956,7 +955,7 @@ def test_claimant_cannot_validate_their_own_pickup(client, joao, attendant, item
 def test_attendant_never_hands_over_their_own_claim(
     client, signup, admin, attendant, item, point, clock
 ):
-    # RN21: approved as a user, then promoted and linked to the item's point
+    # aprovado como usuário, depois virou atendente do ponto do item
     account = signup(CARLOS)
     claim_id, code = approved(client, account, attendant, item)
     client.patch(f"/v1/users/{account.id}/role", json={"role": "atendente"}, headers=admin.headers)
@@ -1032,7 +1031,7 @@ def test_rn14_rn15_losing_an_item_to_its_owner_is_not_a_failed_attempt(
         claim_id, code = approved(client, joao, attendant, item)
         pick_up(client, attendant, claim_id, point, code)
 
-    # three rejections, none of them a failure: Carlos can still claim
+    # três rejeições, mas nenhuma conta como falha, então o Carlos ainda pode reivindicar
     response = claim(client, other, register())
 
     assert response.status_code == 201
@@ -1043,12 +1042,12 @@ def test_awaiting_pickup_lists_approved_claims_with_the_claimant_name(
 ):
     item = register()
     claim_id, _ = approved(client, joao, attendant, item)
-    claim(client, joao, register())  # still pending: not waiting for a pickup
+    claim(client, joao, register())  # ainda pendente: não está esperando retirada
 
     response = client.get(f"{URL}/approved", headers=attendant.headers)
 
     assert response.status_code == 200
-    # the name for the photo ID check (RN46); no pickup code, the claimant shows it
+    # tem o nome pra conferir o documento, mas não o código (quem mostra é a pessoa)
     assert response.json() == [
         {
             "id": claim_id,

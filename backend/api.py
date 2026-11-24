@@ -58,14 +58,14 @@ def _error_response(status_code: int, headers: dict[str, str] | None = None):
     return handler
 
 
-# business errors become HTTP responses only here, so services never know about HTTP
+# os erros de negócio só viram resposta HTTP aqui, os services não sabem nada de HTTP
 app.add_exception_handler(NotFoundError, _error_response(404))
 app.add_exception_handler(ConflictError, _error_response(409))
-# the HTTP spec asks a 401 to say which scheme to authenticate with
+# o HTTP pede que o 401 diga qual esquema de autenticação usar
 app.add_exception_handler(UnauthorizedError, _error_response(401, {"WWW-Authenticate": "Bearer"}))
-# logged in, but not allowed: 403, so the client knows logging in again won't help
+# 403: está logado mas não pode, então logar de novo não resolve
 app.add_exception_handler(ForbiddenError, _error_response(403))
-# valid on its own, but not for the record it points at (e.g. 2 answers to an item with 3 questions)
+# 422: o corpo é válido, mas não bate com o registro (ex.: 2 respostas num item com 3 perguntas)
 app.add_exception_handler(InvalidRequestError, _error_response(422))
 
 
@@ -76,6 +76,6 @@ def raiz():
 
 @app.get("/health")
 def health(session: SessionDep):
-    # an unreachable database was already answered with 503 by get_session
+    # banco fora do ar já virou 503 no get_session
     session.execute(select(1))
     return {"status": "ok", "banco": "ok"}

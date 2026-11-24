@@ -24,8 +24,8 @@ class CollectionPointService:
         return self._uow.collection_points.list_all()
 
     def list_mine(self, actor: User) -> Sequence[CollectionPoint]:
-        # RN41: the counters the actor works at, for the screens of the staff; an admin works at
-        # every point, and anyone else at none, even an attendant demoted with the links still there
+        # balcões onde a pessoa trabalha: admin em todos, atendente nos vinculados e o resto em
+        # nenhum (inclusive atendente rebaixado que ainda tem vínculo na tabela)
         if operates_every_point(actor):
             return self._uow.collection_points.list_all()
         if actor.role != Role.ATENDENTE:

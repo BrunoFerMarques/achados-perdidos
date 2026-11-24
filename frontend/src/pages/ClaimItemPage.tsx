@@ -6,8 +6,8 @@ import type { Claim } from '../api/types'
 import { FeedbackLine } from '../components/FeedbackLine'
 import { LoadState, Page } from '../components/Page'
 
-/** The route: checks the id, and gives each item its own form (`key`), so going from one item to
- * another never keeps the answers or the result of the previous one. */
+/** Rota da reivindicação: confere o id e usa `key` pra cada item ter o próprio formulário,
+ * assim trocar de item não carrega as respostas nem o resultado do anterior. */
 export function ClaimItemRoute() {
   const itemId = Number(useParams().id)
   if (!Number.isInteger(itemId) || itemId <= 0) {
@@ -16,8 +16,8 @@ export function ClaimItemRoute() {
   return <ClaimItemPage key={itemId} itemId={itemId} />
 }
 
-/** Claiming an item (scope §6, §7): one answer per verification question. The public listing
- * links here; the questions only show up once the user is logged in (RN50). */
+/** Tela de reivindicar item: uma resposta por pergunta de verificação. A listagem pública
+ * aponta pra cá, e as perguntas só aparecem depois do login. */
 function ClaimItemPage({ itemId }: { itemId: number }) {
   const loadQuestions = useCallback(() => claimsApi.questions(itemId), [itemId])
   const { data: questions, error, loading } = useLoad(loadQuestions)
@@ -42,7 +42,7 @@ function ClaimItemPage({ itemId }: { itemId: number }) {
             respostas.
           </p>
         ) : (
-          // RN21: only the result, never the score or which answers were wrong
+          // só o resultado, sem nota e sem dizer quais respostas estavam erradas
           <p className="error">Sua reivindicação foi rejeitada.</p>
         )}
         <p>

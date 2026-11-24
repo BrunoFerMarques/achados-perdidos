@@ -9,26 +9,26 @@ from sqlalchemy.orm import Session
 
 
 def database_url() -> URL:
-    # DATABASE_URL keeps the plain postgresql:// form Neon gives; SQLAlchemy needs the driver named
+    # o Neon fornece postgresql://, mas o SQLAlchemy precisa do nome do driver na URL
     return make_url(os.environ["DATABASE_URL"]).set(drivername="postgresql+psycopg")
 
 
 @cache
 def _engine(url: URL) -> Engine:
-    # pre-ping: Neon drops idle connections, so check one before handing it out
+    # o Neon derruba conexão parada, então testa antes de usar (pre-ping)
     return create_engine(url, connect_args={"connect_timeout": 10}, pool_pre_ping=True)
 
 
 def get_engine() -> Engine:
-    # DATABASE_URL is read on every call; during tests it is pointed at another database
+    # lê a variável toda vez porque nos testes ela aponta pra outro banco
     return _engine(database_url())
 
 
 def get_session():
-    # expire_on_commit=False: the response is built from the objects after the commit
+    # a resposta é montada depois do commit, então os objetos não podem expirar
     with Session(get_engine(), expire_on_commit=False) as session:
         try:
-            # connect up front, so an unreachable database is a 503 before the route runs
+            # conecta logo pra devolver 503 antes da rota rodar se o banco estiver fora
             session.connection()
         except OperationalError:
             raise HTTPException(status_code=503, detail="Banco de dados indisponível") from None

@@ -10,7 +10,7 @@ import migrate
 
 SCHEMA = "legacy_migration_test"
 
-# what the SQL runner used before Alembic left in the database
+# o que o script de SQL antigo deixava no banco
 LEGACY_SQL = r"""
 CREATE TABLE schema_migrations (
     version     TEXT PRIMARY KEY,
@@ -47,7 +47,7 @@ INSERT INTO users (name, email, password_hash) VALUES ('Maria Silva', 'maria@exa
 
 @pytest.fixture
 def legacy_database(monkeypatch):
-    # a separate schema plays the old database, so the migrated test schema is left alone
+    # um schema separado faz de banco antigo, assim o schema de teste não é mexido
     with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
         conn.execute(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE")
         conn.execute(f"CREATE SCHEMA {SCHEMA}")

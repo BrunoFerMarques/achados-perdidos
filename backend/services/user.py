@@ -17,8 +17,8 @@ from repositories.unit_of_work import UnitOfWork
 
 
 class UserService:
-    """Account use cases. `actor` is the logged-in user; the permission check comes first, so a
-    user who may not see an account can't tell whether it exists."""
+    """Casos de uso das contas. `actor` é quem está logado, e a permissão é checada antes de
+    buscar, então quem não pode ver uma conta nem descobre se ela existe."""
 
     def __init__(self, uow: UnitOfWork, password_hasher: PasswordHasher, clock: Clock):
         self._uow = uow
@@ -26,7 +26,7 @@ class UserService:
         self._clock = clock
 
     def create(self, name: str, email: str, password: str) -> User:
-        # public: registering is how a visitor becomes a user
+        # público: é assim que um visitante vira usuário
         user = User(name=name, email=email, password_hash=self._password_hasher.hash(password))
         self._uow.users.add(user)
         self._uow.commit()
@@ -50,7 +50,7 @@ class UserService:
     ) -> User:
         ensure(can_manage_user(actor, user_id))
         user = self._find(user_id)
-        # None keeps the current value
+        # None mantém o valor atual
         if name is not None:
             user.name = name
         if email is not None:
@@ -70,15 +70,15 @@ class UserService:
     def unblock(self, actor: User, user_id: int) -> None:
         ensure(can_unblock_user(actor))
         user = self._find(user_id)
-        # RN16: failed claims before this moment stop counting. If the user wasn't blocked, it
-        # still clears the failures that hadn't caused a block yet: the admin's call.
-        # The same clock that domain/blocking.py will be given as `now`, so both sides agree
+        # falhas antes deste momento param de contar. Se o usuário nem estava bloqueado, isso
+        # também zera as falhas que ainda não tinham dado bloqueio (é decisão do admin). Usa o
+        # mesmo relógio que o domain/blocking.py recebe como `now`
         user.unblocked_at = self._clock.now()
         self._uow.commit()
 
     def promote_to_admin(self, email: str) -> User:
-        """Only for make_admin.py, which makes the first admin. There is no actor to check: whoever
-        runs the script already holds the database credentials, more than any role in the API."""
+        """Só usado pelo make_admin.py pra criar o primeiro admin. Não tem permissão pra checar,
+        quem roda o script já tem acesso direto ao banco."""
         user = self._uow.users.get_by_email(email)
         if user is None:
             raise UserNotFound()
@@ -89,8 +89,8 @@ class UserService:
     def delete(self, actor: User, user_id: int) -> None:
         ensure(can_manage_user(actor, user_id))
         user = self._find(user_id)
-        # the claims go with the account (ON DELETE CASCADE); an approved one first gives its item
-        # back, or the item would stay reserved for nobody
+        # as reivindicações somem com a conta (CASCADE), mas antes a aprovada devolve o item,
+        # senão ele ficaria reservado pra ninguém
         for claim in self._uow.claims.lock_active_by_claimant(user_id):
             claim.cancel(by=actor.id, at=self._clock.now())
         # the liberacao lines go in before the account leaves: SQLAlchemy would delete the user

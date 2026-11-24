@@ -1,8 +1,8 @@
-"""Apply pending migrations from migrations/versions/ to DATABASE_URL.
+"""Aplica as migrações pendentes no DATABASE_URL.
 
-Usage: python migrate.py  (same as `alembic upgrade head`)
+Uso: python migrate.py  (mesma coisa que `alembic upgrade head`)
 
-Kept as the entry point so the Render start command and the tests don't depend on the Alembic CLI.
+Existe pra o start do Render e os testes não dependerem da CLI do Alembic.
 """
 
 from pathlib import Path
@@ -16,8 +16,8 @@ from db import database_url
 
 ALEMBIC_INI = Path(__file__).parent / "alembic.ini"
 
-# before Alembic, a plain SQL runner recorded each applied file in schema_migrations;
-# 001_create_users.sql created exactly what revision f74061d19e30 creates
+# antes do Alembic, um script simples registrava os .sql aplicados em schema_migrations,
+# e o 001_create_users.sql criava o mesmo que a revisão f74061d19e30
 LEGACY_FILE = "001_create_users.sql"
 LEGACY_REVISION = "f74061d19e30"
 
@@ -30,7 +30,7 @@ def main():
 
 
 def _adopt_legacy_database(config: Config) -> None:
-    """Hand a database created by the old SQL runner over to Alembic, keeping its data."""
+    """Passa pro Alembic um banco criado pelo script antigo, sem perder os dados."""
     engine = create_engine(database_url(), poolclass=pool.NullPool)
     with engine.connect() as conn:
         tables = inspect(conn).get_table_names()
@@ -39,7 +39,7 @@ def _adopt_legacy_database(config: Config) -> None:
         applied = set(conn.scalars(text("SELECT version FROM schema_migrations")))
 
     if LEGACY_FILE in applied:
-        # the tables already exist: record the revision as applied instead of running it
+        # as tabelas já existem, então só marca a revisão como aplicada
         command.stamp(config, LEGACY_REVISION)
     with engine.begin() as conn:
         conn.execute(text("DROP TABLE schema_migrations"))

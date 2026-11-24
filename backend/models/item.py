@@ -27,7 +27,7 @@ class Item(Base):
             "'devolvido', 'expirado', 'destinado', 'cancelado')",
             name="status",
         ),
-        # RN05: a destination exactly while the item is on its way, and never the point it left
+        # destino só enquanto o item está em transferência, e nunca igual à origem
         CheckConstraint(
             "(status = 'em_transferencia') = (transfer_to_id IS NOT NULL) "
             "AND (transfer_to_id IS NULL OR transfer_to_id <> collection_point_id)",
@@ -40,7 +40,7 @@ class Item(Base):
     location_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("locations.id"))
     color_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("colors.id"))
     collection_point_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("collection_points.id"))
-    # RN05: where the item is going; collection_point_id stays the origin until it arrives
+    # pra onde o item vai; collection_point_id continua sendo a origem até ele chegar
     transfer_to_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("collection_points.id")
     )
@@ -83,8 +83,8 @@ class Item(Base):
         )
 
     def receive(self, point_id: int, *, by: int, at: datetime) -> None:
-        # RN02: only a registered item is received. The diagram also lets a reserved item and one
-        # in transfer reach DISPONIVEL, but those arrows belong to the claim and to arrive()
+        # só item registrado pode ser recebido. Reservado e em transferência também voltam pra
+        # DISPONIVEL no diagrama, mas por outros caminhos (reivindicação e arrive)
         if self.status != ItemStatus.REGISTERED:
             raise InvalidTransition()
         # RN02: the item now belongs to the point where it was handed in, and the line says so
@@ -92,19 +92,18 @@ class Item(Base):
         self.transition_to(ItemStatus.AVAILABLE, by=by, at=at)
 
     def transfer_to(self, point_id: int, *, by: int, at: datetime) -> None:
-        # RN05: only from the shelf; a reserved item waits for its owner where it is
+        # só sai da prateleira; item reservado fica esperando o dono
         if self.status != ItemStatus.AVAILABLE:
             raise ItemNotAvailable()
         if point_id == self.collection_point_id:
             raise ItemAlreadyAtThisPoint()
-        # the destination before the arrow: appending the history line may autoflush, and the
-        # database wants both together (items_transfer_to_id_check). The departure line is still
-        # written at the origin, where the item belongs until it arrives
+        # o destino vai antes da transição porque anexar o histórico pode dar autoflush, e a
+        # constraint exige os dois juntos. A linha de saída ainda é gravada na origem
         self.transfer_to_id = point_id
         self.transition_to(ItemStatus.IN_TRANSFER, by=by, at=at)
 
     def arrive(self, *, by: int, at: datetime) -> None:
-        # RN05: the item now belongs to its destination, and the arrival line is written there
+        # agora o item é do destino, e a linha de chegada é gravada lá
         if self.transfer_to_id is None:
             raise ItemNotInTransfer()
         self.collection_point_id, self.transfer_to_id = self.transfer_to_id, None

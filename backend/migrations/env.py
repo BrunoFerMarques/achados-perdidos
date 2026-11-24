@@ -10,17 +10,17 @@ from models import Base
 config = context.config
 
 if config.config_file_name is not None:
-    # keep the loggers pytest and uvicorn have already set up
+    # não mexe nos loggers que o pytest e o uvicorn já configuraram
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 load_dotenv()
 
-# one transaction per migration: a failing migration leaves nothing behind
+# uma transação por migração, pra uma migração que falha não deixar nada pela metade
 OPTIONS = {"target_metadata": Base.metadata, "transaction_per_migration": True}
 
 
 def run_migrations_offline() -> None:
-    # `alembic upgrade head --sql` prints the SQL instead of running it
+    # `alembic upgrade head --sql` só imprime o SQL
     context.configure(url=database_url(), literal_binds=True, **OPTIONS)
     with context.begin_transaction():
         context.run_migrations()

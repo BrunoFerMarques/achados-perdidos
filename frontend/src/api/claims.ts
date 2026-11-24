@@ -1,7 +1,7 @@
 import { api, post } from './client'
 import type { Claim, ClaimPickup, ClaimReview, PickupIn, Question } from './types'
 
-// the claim routes (scope §6): the claimant's side, then the attendant's review and counter
+// rotas da reivindicação: primeiro as do reivindicante, depois análise e balcão
 export const claimsApi = {
   questions: (itemId: number) => api<Question[]>(`/v1/claims/items/${itemId}/questions`),
   create: (itemId: number, answers: string[]) =>

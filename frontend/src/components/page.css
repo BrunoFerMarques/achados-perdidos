@@ -83,7 +83,7 @@
   --ok: #1e7b45;
 
   @media (prefers-color-scheme: dark) {
-    /* at least 4.5:1 on the dark background (WCAG AA) */
+    /* pelo menos 4,5:1 no fundo escuro (WCAG AA) */
     --error: #f1948a;
     --ok: #7dcea0;
   }

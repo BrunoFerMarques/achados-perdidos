@@ -103,7 +103,7 @@ def test_rn02_receive_moves_the_item_to_the_counters_point_before_the_line():
     ],
 )
 def test_only_items_on_a_shelf_or_on_their_way_accept_claims(status, accepts):
-    # the "Aceita nova reivindicação" column of the table in scope section 5
+    # coluna "Aceita nova reivindicação" da tabela de status do item no escopo
     assert accepts_claims(status) is accepts
 
 

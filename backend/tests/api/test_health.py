@@ -13,7 +13,7 @@ def test_health_returns_ok_when_database_is_up(client):
 
 
 def test_health_returns_503_when_database_is_down(client, monkeypatch):
-    # nothing listens on port 1, so the connection is refused right away
+    # nada escuta na porta 1, então a conexão é recusada na hora
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@127.0.0.1:1/none")
 
     response = client.get("/health")

@@ -6,8 +6,8 @@ import { FeedbackLine } from '../components/FeedbackLine'
 import { LoadState, Page } from '../components/Page'
 import { formatDateTime } from '../labels'
 
-/** The attendant's review (RN22): the score and each answer next to the expected one, for the
- * claims at their points (RN41). Approving reserves the item and gives the claimant a code. */
+/** Análise do atendente: nota e cada resposta do lado da esperada, só dos pontos dele.
+ * Aprovar reserva o item e gera o código de retirada. */
 export function ReviewClaimsPage() {
   const { data: claims, error, loading, reload } = useLoad(claimsApi.pending)
   const { pointName } = usePoints()

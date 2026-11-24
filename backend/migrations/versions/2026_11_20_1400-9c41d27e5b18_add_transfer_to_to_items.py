@@ -27,7 +27,7 @@ def upgrade() -> None:
         ["transfer_to_id"],
         ["id"],
     )
-    # RN05: a destination exactly while the item is on its way, and never the point it left
+    # destino preenchido só enquanto o item está em transferência, e nunca igual à origem
     op.create_check_constraint(
         op.f("items_transfer_to_id_check"),
         "items",

@@ -9,7 +9,7 @@ export const itemsApi = {
   register: (item: ItemCreate) => api<{ id: number }>('/v1/items', post(item)),
 }
 
-// the transfer between points (RN05)
+// transferência entre pontos
 export const transfersApi = {
   list: () => api<ItemTransfer[]>('/v1/items/transfers'),
   send: (itemId: number, transferToId: number) =>

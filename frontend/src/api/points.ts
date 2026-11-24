@@ -3,13 +3,13 @@ import { api } from './client'
 import type { CollectionPoint } from './types'
 
 export const pointsApi = {
-  // public: every collection point, by name
+  // público: todos os pontos de coleta, em ordem de nome
   all: () => api<CollectionPoint[]>('/v1/collection-points'),
-  // where the logged-in attendant works; every point for an admin, none for anyone else (RN41)
+  // pontos onde o atendente logado trabalha (admin vê todos, o resto nenhum)
   mine: () => api<CollectionPoint[]>('/v1/collection-points/mine'),
 }
 
-/** Every collection point, and the name of one by its id (the API answers with ids only). */
+/** Todos os pontos e o nome de cada um pelo id, já que a API só manda o id. */
 export function usePoints() {
   const { data } = useLoad(pointsApi.all)
   const points = data ?? []

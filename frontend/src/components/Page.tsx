@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import './page.css'
 
-/** The frame of an inner screen: a way back home, the title, the content. */
+/** Moldura das telas internas: link pro início, título e conteúdo. */
 export function Page({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="page">
@@ -13,7 +13,7 @@ export function Page({ title, children }: { title: string; children: ReactNode }
   )
 }
 
-/** The loading and error lines every list screen shows before its content. */
+/** Mensagem de carregando ou de erro que as telas de lista mostram antes do conteúdo. */
 export function LoadState({ loading, error }: { loading: boolean; error: string }) {
   if (error) return <p role="alert" className="error">{error}</p>
   if (loading) return <p>Carregando…</p>

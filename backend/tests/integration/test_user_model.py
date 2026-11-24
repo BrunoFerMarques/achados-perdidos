@@ -14,7 +14,7 @@ def add_user(db, name: str, email: str) -> User:
 
 def test_user_is_created(db):
     user_id = add_user(db, "Maria Silva", "maria@example.com").id
-    db.expunge_all()  # forget the loaded object, so the read below hits the database
+    db.expunge_all()  # esquece o objeto pra próxima leitura ir no banco
 
     user = db.get(User, user_id)
     assert (user.name, user.email) == ("Maria Silva", "maria@example.com")

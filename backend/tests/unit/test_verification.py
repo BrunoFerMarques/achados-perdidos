@@ -1,4 +1,4 @@
-# scope §7 (docs/diagrama.md): ownership verification, scoring a claim's answers
+# verificação de posse: nota das respostas de uma reivindicação
 import pytest
 
 from domain.verification import is_correct, normalize, passes, score
@@ -19,7 +19,7 @@ def test_normalize_ignores_case_accents_punctuation_and_extra_spaces(answer, exp
 
 
 def test_normalize_treats_punctuation_as_a_separator():
-    # "1,5" and "1.5" are the same answer; dropping the comma would glue the digits together
+    # "1,5" e "1.5" são a mesma resposta (tirar a vírgula grudaria os números)
     assert normalize("1,5") == normalize("1.5") == "1 5"
 
 
@@ -34,9 +34,9 @@ def test_different_answer_is_wrong():
 @pytest.mark.parametrize(
     ("given", "expected"),
     [
-        ("pretu", "preto"),  # one letter swapped
-        ("banda quen", "banda queen"),  # one letter missing
-        ("banda queeen", "banda queen"),  # one letter too many
+        ("pretu", "preto"),  # uma letra trocada
+        ("banda quen", "banda queen"),  # uma letra faltando
+        ("banda queeen", "banda queen"),  # uma letra sobrando
     ],
 )
 def test_one_typo_is_tolerated_when_the_expected_answer_has_5_or_more_characters(given, expected):
@@ -46,9 +46,9 @@ def test_one_typo_is_tolerated_when_the_expected_answer_has_5_or_more_characters
 @pytest.mark.parametrize(
     ("given", "expected"),
     [
-        ("8F3B", "8F3A"),  # 4 characters: a serial number must be exact
+        ("8F3B", "8F3A"),  # 4 caracteres: um número de série precisa ser exato
         ("azu", "azul"),
-        ("azuls", "azul"),  # the length that counts is the expected answer's
+        ("azuls", "azul"),  # o tamanho que conta é o da resposta esperada
     ],
 )
 def test_no_typo_is_tolerated_when_the_expected_answer_has_less_than_5_characters(given, expected):
@@ -58,8 +58,8 @@ def test_no_typo_is_tolerated_when_the_expected_answer_has_less_than_5_character
 @pytest.mark.parametrize(
     ("given", "expected"),
     [
-        ("bnda quen", "banda queen"),  # two letters missing
-        ("prata", "preto"),  # two letters swapped
+        ("bnda quen", "banda queen"),  # duas letras faltando
+        ("prata", "preto"),  # duas letras trocadas
     ],
 )
 def test_two_typos_are_never_tolerated(given, expected):
@@ -67,7 +67,7 @@ def test_two_typos_are_never_tolerated(given, expected):
 
 
 def answers(total: int, correct: int) -> tuple[list[str], list[str]]:
-    """Answers to `total` questions, the first `correct` of them right."""
+    """Respostas para `total` perguntas, as `correct` primeiras certas."""
     expected = [f"resposta {i}" for i in range(total)]
     given = expected[:correct] + ["errada"] * (total - correct)
     return given, expected
