@@ -23,10 +23,41 @@
   text-decoration: none;
 }
 
-.header nav {
+.header nav,
+.nav-group {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+/* geral, atendimento e administração: um traço separa os grupos */
+.nav-group + .nav-group {
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+
+/* o order põe o menu depois do nome e do Sair, que sobem para a linha do logo */
+.header nav.own-line {
+  order: 1;
+  flex-basis: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* o texto do primeiro link fica alinhado com o logo */
+.header nav.own-line .nav-group:first-child {
+  margin-left: -10px;
+}
+
+/* quando os três não cabem lado a lado, cada grupo ocupa a própria linha */
+@media (max-width: 1000px) {
+  .header nav.own-line .nav-group {
+    flex-basis: 100%;
+    margin-left: -10px;
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 
 .header nav a {
@@ -53,6 +84,11 @@
   align-items: center;
   gap: 12px;
   margin-left: auto;
+}
+
+.session .button {
+  padding: 6px 14px;
+  font-size: 15px;
 }
 
 .session-name {
