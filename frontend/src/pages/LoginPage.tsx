@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { Page } from '../components/Page'
@@ -64,6 +64,12 @@ export function LoginPage() {
           {sending ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+      <p>
+        Não tem conta?{' '}
+        <Link to="/criar-conta" state={{ from }}>
+          Criar conta
+        </Link>
+      </p>
     </Page>
   )
 }

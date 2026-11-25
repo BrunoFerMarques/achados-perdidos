@@ -55,9 +55,14 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <Link to="/login" className="button primary">
-                Entrar
-              </Link>
+              <>
+                <Link to="/criar-conta" className="button">
+                  Criar conta
+                </Link>
+                <Link to="/login" className="button primary">
+                  Entrar
+                </Link>
+              </>
             )}
           </div>
         )}

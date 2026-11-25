@@ -12,6 +12,7 @@ import { PickupPage } from './pages/PickupPage'
 import { ReceiveItemsPage } from './pages/ReceiveItemsPage'
 import { RegisterItemPage } from './pages/RegisterItemPage'
 import { ReviewClaimsPage } from './pages/ReviewClaimsPage'
+import { SignUpPage } from './pages/SignUpPage'
 import { TransfersPage } from './pages/TransfersPage'
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/criar-conta" element={<SignUpPage />} />
         <Route
           path="/itens/novo"
           element={<RequireAuth><RegisterItemPage /></RequireAuth>}
