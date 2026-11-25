@@ -19,11 +19,12 @@ class ClaimRepository(Repository[Claim]):
         return self._session.scalars(stmt.execution_options(populate_existing=True)).one_or_none()
 
     def list_by_claimant(self, claimant_id: int) -> Sequence[Claim]:
-        # traz o item junto porque o ClaimOut mostra o ponto de coleta
+        # traz o item junto porque o ClaimOut mostra o ponto de coleta e a descrição pública,
+        # que depende da categoria
         stmt = (
             select(Claim)
             .where(Claim.claimant_id == claimant_id)
-            .options(selectinload(Claim.item))
+            .options(selectinload(Claim.item).selectinload(Item.category))
             .order_by(Claim.id.desc())
         )
         return self._session.scalars(stmt).all()

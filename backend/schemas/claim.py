@@ -25,6 +25,8 @@ class ClaimOut(BaseModel):
 
     id: int
     item_id: int
+    # a que qualquer um já lê no mural, pra ele saber qual é o item
+    item_public_description: str
     status: str
     collection_point_id: int
     pickup_code: str | None
@@ -55,6 +57,7 @@ class ClaimReviewOut(BaseModel):
 
     id: int
     item_id: int
+    item_description: str
     claimant_id: int
     status: str
     score: float
