@@ -1,6 +1,7 @@
 # Etapa 05: registering a found item with its verification questions (RN20, RN23)
 # Etapa 08: receiving it at a collection point (RN02, RN41) and its custody history (RN06, RN42)
 # Etapa 09: the public listing, its filters and what it never shows (RN50, RN52)
+# Etapa 11: the staff's queue of registered items (RN02) and the description on receipt (RN51)
 from datetime import datetime, timedelta
 
 import pytest
@@ -232,6 +233,82 @@ def test_receiving_twice_is_409_and_writes_nothing(client, attendant, item, poin
 
     assert response.status_code == 409
     assert len(history(client, attendant, item).json()) == 2
+
+
+# RN51: the attendant may rewrite the public description when the object is handed in
+def receive_with(client, account, item_id: int, point_id: int, description: str):
+    body = {"collection_point_id": point_id, "description": description}
+    return client.post(f"{URL}/{item_id}/receive", json=body, headers=account.headers)
+
+
+def test_rn51_attendant_rewrites_the_description_on_receipt(client, attendant, item, point):
+    response = receive_with(client, attendant, item, point, "  Garrafa azul  ")
+
+    assert response.status_code == 200
+    # stripped, like every text the API takes
+    assert response.json()["description"] == "Garrafa azul"
+
+
+def test_receipt_without_description_keeps_the_finders(client, attendant, item, point):
+    response = receive(client, attendant, item, point)
+
+    assert response.json()["description"] == "Garrafa azul com adesivo"
+
+
+def test_blank_description_on_receipt_is_422_and_receives_nothing(client, attendant, item, point):
+    response = receive_with(client, attendant, item, point, "   ")
+
+    assert response.status_code == 422
+    assert len(history(client, attendant, item).json()) == 1
+
+
+def test_refused_receipt_keeps_the_description(client, attendant, item, point):
+    receive(client, attendant, item, point)
+
+    response = receive_with(client, attendant, item, point, "Outra descrição")
+
+    assert response.status_code == 409
+    # the item is on the shelf now, so the public listing shows its description
+    assert client.get(URL).json()[0]["public_description"] == "Garrafa azul com adesivo"
+
+
+# --- the staff's queue (RN02) ---
+
+
+def registered(client, account):
+    return client.get(f"{URL}/registered", headers=account.headers)
+
+
+def test_registered_queue_requires_login(client):
+    assert client.get(f"{URL}/registered").status_code == 401
+
+
+def test_users_cannot_see_the_registered_queue(client, maria, item):
+    # not even the finder: the queue is the counter's
+    assert registered(client, maria).status_code == 403
+
+
+def test_rn02_any_attendant_sees_items_registered_at_any_point(
+    client, signup, admin, maria, new_item, item
+):
+    # Carlos works only at the restaurant, but Maria may hand the library's item in there
+    restaurant = new_point(client, admin, "Restaurante")
+    carlos = signup(CARLOS, Role.ATENDENTE)
+    link(client, admin, restaurant, carlos)
+    other = client.post(URL, json=new_item, headers=maria.headers).json()["id"]
+
+    response = registered(client, carlos)
+
+    assert response.status_code == 200
+    # oldest first, with the raw description the attendant may rewrite
+    assert [i["id"] for i in response.json()] == [item, other]
+    assert response.json()[0]["description"] == "Garrafa azul com adesivo"
+
+
+def test_received_item_leaves_the_registered_queue(client, attendant, item, point):
+    receive(client, attendant, item, point)
+
+    assert registered(client, attendant).json() == []
 
 
 # --- the custody history ---

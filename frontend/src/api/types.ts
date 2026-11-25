@@ -134,3 +134,22 @@ export type ItemCreate = {
   found_date: string
   questions: QuestionInput[]
 }
+
+// item registrado à espera do recebimento (ItemOut). Só os campos que a tela usa, a API manda
+// mais
+export type RegisteredItem = {
+  id: number
+  category_id: number
+  location_id: number
+  color_id: number
+  collection_point_id: number
+  description: string
+  found_date: string
+}
+
+// o que o atendente envia ao receber (ReceiveIn): o balcão onde ele está (RN02) e a descrição
+// pública, que ele pode ter editado (RN51)
+export type ReceiveIn = {
+  collection_point_id: number
+  description: string
+}

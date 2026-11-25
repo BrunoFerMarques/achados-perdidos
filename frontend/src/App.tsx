@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MyClaimsPage } from './pages/MyClaimsPage'
 import { PickupPage } from './pages/PickupPage'
+import { ReceiveItemsPage } from './pages/ReceiveItemsPage'
 import { RegisterItemPage } from './pages/RegisterItemPage'
 import { ReviewClaimsPage } from './pages/ReviewClaimsPage'
 import { TransfersPage } from './pages/TransfersPage'
@@ -27,6 +28,10 @@ function App() {
       <Route
         path="/reivindicacoes"
         element={<RequireRole roles={CLAIMANTS}><MyClaimsPage /></RequireRole>}
+      />
+      <Route
+        path="/atendimento/recebimento"
+        element={<RequireRole roles={STAFF}><ReceiveItemsPage /></RequireRole>}
       />
       <Route
         path="/atendimento/analise"

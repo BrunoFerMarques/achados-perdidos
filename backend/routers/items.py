@@ -48,7 +48,15 @@ def receive_item(
     item_id: int, payload: ReceiveIn, current_user: CurrentUserDep, items: ItemServiceDep
 ):
     # an action route, not a PATCH on the status: receiving has rules of its own (RN02, RN41)
-    return items.receive(current_user, item_id, payload.collection_point_id)
+    return items.receive(
+        current_user, item_id, payload.collection_point_id, description=payload.description
+    )
+
+
+@router.get("/registered", response_model=list[ItemOut])
+def list_registered_items(current_user: CurrentUserDep, items: ItemServiceDep):
+    # RN02: the staff's queue of items waiting to be handed in at a counter
+    return items.list_registered(current_user)
 
 
 @router.post("/{item_id}/transfer", response_model=ItemTransferOut)

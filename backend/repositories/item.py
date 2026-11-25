@@ -18,6 +18,17 @@ class ItemRepository(Repository[Item]):
         stmt = select(Item).where(Item.id == item_id).with_for_update()
         return self._session.scalars(stmt.execution_options(populate_existing=True)).one_or_none()
 
+    def list_registered(self) -> Sequence[Item]:
+        """Items no counter has received yet, oldest first, from every point: the finder may hand
+        an item in anywhere (RN02). The questions come along for ItemOut."""
+        stmt = (
+            select(Item)
+            .where(Item.status == ItemStatus.REGISTERED)
+            .options(selectinload(Item.questions))
+            .order_by(Item.id)
+        )
+        return self._session.scalars(stmt).all()
+
     def list_in_transfer(self, point_ids: set[int] | None) -> Sequence[Item]:
         """Itens em transferência, por ordem de registro. `point_ids` filtra os que saem ou
         chegam nesses pontos (None = todos). Traz as perguntas junto por causa do ItemOut."""
