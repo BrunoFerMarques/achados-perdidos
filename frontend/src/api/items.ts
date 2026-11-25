@@ -1,5 +1,13 @@
 import { api, post } from './client'
-import type { ItemCreate, ItemTransfer, PublicItem, ReceiveIn, RegisteredItem } from './types'
+import type {
+  CustodyRecord,
+  ItemCreate,
+  ItemTransfer,
+  MyItem,
+  PublicItem,
+  ReceiveIn,
+  RegisteredItem,
+} from './types'
 
 // the public listing (RN50): no token needed; only items already at a counter come back
 export const itemsApi = {
@@ -7,6 +15,10 @@ export const itemsApi = {
   listPublic: (params: URLSearchParams) => api<PublicItem[]>(`/v1/items?${params}`),
   // the finder registers what they found (needs the token); the API answers with the new item
   register: (item: ItemCreate) => api<{ id: number }>('/v1/items', post(item)),
+  // RN53: the finder follows what they registered
+  mine: () => api<MyItem[]>('/v1/items/mine'),
+  // RN53: the custody history, staff only
+  history: (itemId: number) => api<CustodyRecord[]>(`/v1/items/${itemId}/history`),
 }
 
 // recebimento no balcão, só para a equipe

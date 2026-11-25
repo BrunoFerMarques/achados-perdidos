@@ -5,9 +5,11 @@ import { CLAIMANTS, STAFF } from './auth/roles'
 import { Header } from './components/Header'
 import { Page } from './components/Page'
 import { ClaimItemRoute } from './pages/ClaimItemPage'
+import { HistoryPage } from './pages/HistoryPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MyClaimsPage } from './pages/MyClaimsPage'
+import { MyItemsPage } from './pages/MyItemsPage'
 import { PickupPage } from './pages/PickupPage'
 import { ReceiveItemsPage } from './pages/ReceiveItemsPage'
 import { RegisterItemPage } from './pages/RegisterItemPage'
@@ -26,6 +28,10 @@ function App() {
         <Route
           path="/itens/novo"
           element={<RequireAuth><RegisterItemPage /></RequireAuth>}
+        />
+        <Route
+          path="/itens/meus"
+          element={<RequireAuth><MyItemsPage /></RequireAuth>}
         />
         <Route
           path="/itens/:id/reivindicar"
@@ -50,6 +56,10 @@ function App() {
         <Route
           path="/atendimento/transferencias"
           element={<RequireRole roles={STAFF}><TransfersPage /></RequireRole>}
+        />
+        <Route
+          path="/atendimento/historico"
+          element={<RequireRole roles={STAFF}><HistoryPage /></RequireRole>}
         />
         <Route
           path="*"

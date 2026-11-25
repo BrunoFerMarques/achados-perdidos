@@ -29,7 +29,12 @@ export function Header() {
           <NavLink to="/" end>
             Mural
           </NavLink>
-          {user && <NavLink to="/itens/novo">Registrar item</NavLink>}
+          {user && (
+            <>
+              <NavLink to="/itens/novo">Registrar item</NavLink>
+              <NavLink to="/itens/meus">Meus itens</NavLink>
+            </>
+          )}
           {user && CLAIMANTS.includes(user.role) && (
             <NavLink to="/reivindicacoes">Minhas reivindicações</NavLink>
           )}
@@ -39,6 +44,7 @@ export function Header() {
               <NavLink to="/atendimento/analise">Analisar</NavLink>
               <NavLink to="/atendimento/retirada">Retirada</NavLink>
               <NavLink to="/atendimento/transferencias">Transferências</NavLink>
+              <NavLink to="/atendimento/historico">Histórico</NavLink>
             </>
           )}
         </nav>

@@ -34,6 +34,7 @@ export type ClaimStatus =
 export type Claim = {
   id: number
   item_id: number
+  item_public_description: string
   status: ClaimStatus
   collection_point_id: number
   pickup_code: string | null
@@ -52,6 +53,7 @@ export type ReviewedAnswer = {
 export type ClaimReview = {
   id: number
   item_id: number
+  item_description: string
   claimant_id: number
   status: ClaimStatus
   score: number
@@ -81,6 +83,36 @@ export type ItemStatus =
   | 'expirado'
   | 'destinado'
   | 'cancelado'
+
+export type CustodyEvent =
+  | 'registro'
+  | 'recebimento'
+  | 'transferencia_saida'
+  | 'transferencia_chegada'
+  | 'reserva'
+  | 'liberacao'
+  | 'devolucao'
+  | 'expiracao'
+  | 'destinacao'
+  | 'cancelamento'
+
+// one line of the custody history (CustodyRecordOut); no name when the account was deleted
+export type CustodyRecord = {
+  event: CustodyEvent
+  collection_point_id: number
+  actor_name: string | null
+  at: string
+}
+
+// an item the logged-in person registered (ItemOut). Only the fields the screen uses
+export type MyItem = {
+  id: number
+  category_id: number
+  collection_point_id: number
+  description: string
+  found_date: string
+  status: ItemStatus
+}
 
 // item em transferência visto pela equipe (ItemTransferOut). Só os campos que a tela usa, a
 // API manda mais

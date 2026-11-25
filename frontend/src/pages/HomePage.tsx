@@ -4,7 +4,7 @@ import { useCatalog } from '../api/catalog'
 import { useLoad } from '../api/hooks'
 import { itemsApi } from '../api/items'
 import { usePoints } from '../api/points'
-import { CLAIMANTS } from '../auth/roles'
+import { CLAIMANTS, STAFF } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
 import { LoadState, Page } from '../components/Page'
 import { formatDate } from '../labels'
@@ -90,10 +90,17 @@ export function HomePage() {
               {colors.nameOf(item.color_id)} · achado em {locations.nameOf(item.location_id)}, dia{' '}
               {formatDate(item.found_date)}
             </span>
-            <span className="muted">Guardado em {pointName(item.collection_point_id)}</span>
+            <span className="muted">
+              Item nº {item.id} · guardado em {pointName(item.collection_point_id)}
+            </span>
             {canClaim && (
               <Link to={`/itens/${item.id}/reivindicar`} className="button primary">
                 Reivindicar
+              </Link>
+            )}
+            {user && STAFF.includes(user.role) && (
+              <Link to={`/atendimento/historico?item=${item.id}`} className="button">
+                Ver histórico
               </Link>
             )}
           </li>

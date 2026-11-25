@@ -35,7 +35,7 @@ export function ReviewClaimsPage() {
       {claims?.map((claim) => (
         <section key={claim.id} className="card">
           <h2>
-            Reivindicação nº {claim.id} · item nº {claim.item_id}
+            Reivindicação nº {claim.id} · item nº {claim.item_id}: {claim.item_description}
           </h2>
           <p>
             {pointName(claim.collection_point_id)} · feita em {formatDateTime(claim.created_at)}

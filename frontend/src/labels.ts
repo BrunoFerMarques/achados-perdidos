@@ -1,4 +1,4 @@
-import type { ClaimStatus, Role } from './api/types'
+import type { ClaimStatus, CustodyEvent, ItemStatus, Role } from './api/types'
 
 export const ROLE: Record<Role, string> = {
   usuario: 'usuário',
@@ -14,6 +14,31 @@ export const CLAIM_STATUS: Record<ClaimStatus, string> = {
   cancelada: 'Cancelada',
   concluida: 'Retirada',
   expirada: 'Prazo de retirada vencido',
+}
+
+// what the finder reads: the status only, never who claimed it (RN53)
+export const ITEM_STATUS: Record<ItemStatus, string> = {
+  registrado: 'Esperando a entrega no ponto de coleta',
+  disponivel: 'Guardado no ponto de coleta',
+  em_transferencia: 'A caminho de outro ponto de coleta',
+  reservado: 'Reservado: aguardando a retirada',
+  devolvido: 'Devolvido ao dono',
+  expirado: 'Prazo de guarda vencido',
+  destinado: 'Doado ou descartado',
+  cancelado: 'Registro cancelado',
+}
+
+export const CUSTODY_EVENT: Record<CustodyEvent, string> = {
+  registro: 'Registrado no site',
+  recebimento: 'Recebido no balcão',
+  transferencia_saida: 'Enviado para outro ponto',
+  transferencia_chegada: 'Chegou de outro ponto',
+  reserva: 'Reservado para o dono',
+  liberacao: 'Voltou a ficar disponível',
+  devolucao: 'Devolvido ao dono',
+  expiracao: 'Prazo de guarda vencido',
+  destinacao: 'Doado ou descartado',
+  cancelamento: 'Registro cancelado',
 }
 
 export function formatDateTime(iso: string): string {
