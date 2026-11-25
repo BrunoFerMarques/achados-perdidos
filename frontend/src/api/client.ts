@@ -64,6 +64,10 @@ export function post(body?: unknown): RequestInit {
   return { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }
 }
 
+export function patch(body: unknown): RequestInit {
+  return { method: 'PATCH', body: JSON.stringify(body) }
+}
+
 export function errorText(err: unknown): string {
   // a API já manda a mensagem em português, pronta pro usuário
   if (err instanceof ApiError) return err.message
