@@ -1,15 +1,15 @@
 name: Pages
 
-# publica a frontend no GitHub Pages a cada merge no master
+# publica o frontend no GitHub Pages depois que o CI passa no master
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # um deploy por vez, sem cancelar o que já começou
 concurrency:
@@ -18,6 +18,11 @@ concurrency:
 
 jobs:
   build:
+    # só com o CI verde de um push no master (um PR de fork com branch "master" também dispara o
+    # workflow_run, por isso o event == 'push'), ou na mão a partir do master
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +30,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # o mesmo commit que o CI testou
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # o npm ci roda scripts de pacotes, então o token não fica salvo no .git
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -54,6 +64,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # só este job publica, então só ele recebe essas permissões
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
