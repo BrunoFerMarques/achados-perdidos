@@ -11,4 +11,6 @@ class CustodyRecordOut(BaseModel):
     event: str
     collection_point_id: int
     actor_id: int | None
+    # RN42: who was responsible; None when the account was deleted
+    actor_name: str | None
     at: datetime
