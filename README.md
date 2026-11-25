@@ -12,6 +12,8 @@ Projeto de engenharia de software, aonde iremos implementar um sistema de achado
 
 Ninguém usa o banco de produção na própria máquina.
 
+Em produção, o frontend fica no GitHub Pages, em https://brunofermarques.github.io/achados-perdidos/, e chama a API do Render (https://achados-perdidos-i8mk.onrender.com).
+
 ## Rodando localmente
 
 Requisito: Python 3.13.
@@ -105,5 +107,11 @@ Nunca edite uma migração que já está no `master`: crie uma nova.
 2. O `master` é protegido: o merge só acontece com PR aprovado e CI verde.
 3. Depois do merge, o CI roda de novo no `master`. Com ele verde, o Render faz o deploy.
 4. Ao subir, o Render roda `python migrate.py` no banco de produção e só então inicia a API. Se a migração falhar, o deploy falha e a versão anterior continua no ar.
+5. Com o mesmo CI verde, o workflow `Pages` faz o build do frontend com o endereço da API do Render e publica no GitHub Pages. Também dá para rodar na mão pela aba Actions, só a partir do `master`.
+
+Para o Pages funcionar, duas configurações ficam fora do código:
+
+- No GitHub, em **Settings → Pages → Source**, a opção **GitHub Actions**. Sem ela, o deploy falha.
+- No Render, o `CORS_ORIGINS` precisa ter `https://brunofermarques.github.io`: em minúsculas, sem o `/achados-perdidos` e sem barra no fim. O `api.py` compara o texto exato com a origem do pedido, então qualquer diferença bloqueia todas as chamadas do site.
 
 O Dependabot abre PRs semanais com atualizações das dependências Python e das actions.
