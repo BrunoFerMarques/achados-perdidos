@@ -158,7 +158,7 @@ O frontend (`frontend/`) é uma SPA em React com TypeScript, criada com o Vite. 
 | `src/api/catalog.ts` | `useCatalog()` carrega categorias, locais e cores e dá o `nameOf(id)` de cada lista, no molde do `usePoints()`: a API responde só com os ids. |
 | `src/api/hooks.ts`  | `useLoad(fn)` carrega ao abrir a tela e devolve `data`, `error`, `loading` e `reload()`; `usePoints()` dá o nome de cada ponto de coleta, já que a API responde só com o id; `errorText` mostra a mensagem da API, que já vem em português. |
 | `src/auth/`         | `AuthProvider` e `useAuth()`, com o usuário logado vindo do `/me`; `RequireAuth` protege as rotas, e `RequireRole` as que são de um papel (`STAFF` em `roles.ts`: atendente e admin). |
-| `src/components/`   | `Page` (moldura das telas internas, com a volta ao início), `LoadState` e o `MainMenu` da página inicial, com os links de cada papel.                                                         |
+| `src/components/`   | `Header` (o topo de todas as telas, com os links de cada papel e o Entrar/Sair), `Page` (moldura com título e conteúdo) e `LoadState`. As cores do site são variáveis em `src/index.css`; `page.css` dá o estilo dos formulários, botões, cartões e tabelas.                                                         |
 | `src/pages/`        | Uma tela por rota, ligadas em `App.tsx`. O mural: `HomePage` (`/`, aberta, com busca e filtros). O registro: `RegisterItemPage` (`/itens/novo`, com login). O recebimento: `ReceiveItemsPage` (`/atendimento/recebimento`, só para a equipe). Da reivindicação: `ClaimItemPage` (`/itens/:id/reivindicar`), `MyClaimsPage` (`/reivindicacoes`), `ReviewClaimsPage`, `PickupPage` e `TransfersPage` (em `/atendimento/...`). |
 
 - **O token fica no `localStorage`.** Aguenta o F5 e não muda o backend. O risco (XSS) cai porque o React escapa o texto e o token vale 1 hora. Um 401 num pedido com token apaga o token e desloga.
@@ -168,6 +168,7 @@ O frontend (`frontend/`) é uma SPA em React com TypeScript, criada com o Vite. 
 - **O registro confere na tela o que a API confere de novo.** Campos `required`, até 500 caracteres e de 2 a 5 perguntas, com os botões de pôr e tirar travados nos limites (RN20); a API valida tudo outra vez (422). Ao lado da descrição, o aviso da RN51: o que identifica o dono vira pergunta. O item nasce `registrado` e só entra no mural depois do recebimento, por isso a tela de sucesso manda levar o objeto ao balcão.
 - **O recebimento começa pelo balcão, mas a fila não depende dele.** O atendente escolhe o ponto em que está (`GET /v1/collection-points/mine`) e vê todos os itens registrados, com o ponto que o achador indicou (RN02). A descrição já vem preenchida e pode ser editada, com o aviso de tirar o que só o dono saberia (RN51). Confirmado, o item sai da fila e entra no mural.
 - **A retirada começa pelo balcão.** O atendente escolhe o ponto em que está, vê quem aguarda retirada ali (o código só vale onde o item está, RN45), digita o código que a pessoa mostra e marca o documento conferido, com o nome dela na tela (RN46).
+- **Sair leva ao mural.** Se a pessoa ficasse numa tela protegida, o `RequireAuth` guardaria aquela tela para o próximo login, e quem entrasse com outro papel cairia em "Acesso negado".
 - **CORS no `api.py`.** As origens aceitas vêm de `CORS_ORIGINS`; em produção, ela precisa ter o endereço do site.
 
 ### Referências

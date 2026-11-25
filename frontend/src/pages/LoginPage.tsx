@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { Page } from '../components/Page'
 
 export function LoginPage() {
   const { user, login } = useAuth()
@@ -32,25 +33,37 @@ export function LoginPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Entrar</h1>
-      <label>
-        E-mail
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      </label>
-      <label>
-        Senha
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </label>
-      {error && <p role="alert">{error}</p>}
-      <button type="submit" disabled={sending}>
-        {sending ? 'Entrando…' : 'Entrar'}
-      </button>
-    </form>
+    <Page title="Entrar" narrow>
+      <form onSubmit={handleSubmit}>
+        <label>
+          E-mail
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <label>
+          Senha
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={sending}>
+          {sending ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </Page>
   )
 }
