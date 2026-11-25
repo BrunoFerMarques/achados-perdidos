@@ -7,7 +7,6 @@ from typing import Annotated
 from argon2 import PasswordHasher
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from services.notification import NotificationService
 
 from db import SessionDep
 from domain.clock import Clock, SystemClock
@@ -23,6 +22,7 @@ from services.item import ItemService
 from services.location import LocationService
 from services.lost_report import LostReportService
 from services.match_handler import MatchHandler
+from services.notification import NotificationService
 from services.token import TokenService
 from services.user import UserService
 

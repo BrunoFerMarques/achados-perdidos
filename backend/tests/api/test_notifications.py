@@ -41,6 +41,17 @@ def read_url(notification_id: int) -> str:
     return f"{URL}/{notification_id}/read"
 
 
+def category_id(client, name: str) -> int:
+    response = client.get("/v1/categories")
+    assert response.status_code == 200
+
+    for category in response.json():
+        if category["name"] == name:
+            return category["id"]
+
+    raise AssertionError(f"no category named {name}")
+
+
 @pytest.fixture
 def maria(signup):
     return signup(MARIA)
@@ -89,11 +100,11 @@ def attendant(client, signup, admin, point):
 @pytest.fixture
 def item_payload(client, point):
     return {
-        "category_id": client.get("/v1/categories").json()[0]["id"],
+        "category_id": category_id(client, "Mochilas"),
         "location_id": client.get("/v1/locations").json()[0]["id"],
         "color_id": client.get("/v1/colors").json()[0]["id"],
         "collection_point_id": point,
-        "description": "Garrafa azul com adesivo",
+        "description": "Mochila azul com adesivo",
         "found_date": "2026-11-14",
         "questions": [
             {
@@ -172,7 +183,9 @@ def notification(client, clock, maria, joao, attendant, point, item_payload):
     return notifications[0]
 
 
-# --- RN30: match automático pela API ---
+# ==============================================================================
+# RN30: automatic matching through the API
+# ==============================================================================
 
 
 def test_rn30_receiving_item_generates_notification(
@@ -181,7 +194,7 @@ def test_rn30_receiving_item_generates_notification(
     report = create_report(client, joao, item_payload)
     item_id = register_item(client, maria, item_payload)
 
-    # A notificação só deve surgir após o recebimento.
+    # Notifications must only be created after receipt.
     assert list_notifications(client, joao) == []
 
     receive_item(client, attendant, item_id, point)
@@ -192,6 +205,7 @@ def test_rn30_receiving_item_generates_notification(
     assert notification["item_id"] == item_id
     assert notification["read_at"] is None
     assert notification["created_at"] is not None
+    assert notification["item_available"] is True
 
 
 def test_rn30_creating_report_matches_available_item(
@@ -208,9 +222,12 @@ def test_rn30_creating_report_matches_available_item(
 
     assert notification["lost_report_id"] == report["id"]
     assert notification["item_id"] == item_id
+    assert notification["item_available"] is True
 
 
-# --- GET /v1/notifications ---
+# ==============================================================================
+# GET /v1/notifications
+# ==============================================================================
 
 
 def test_list_without_notifications_returns_empty_list(client, joao):
@@ -240,6 +257,27 @@ def test_list_returns_only_own_notifications(
     assert list_notifications(client, maria) == []
 
 
+def test_notifications_are_listed_newest_first(
+    client, clock, maria, joao, attendant, point, item_payload
+):
+    create_report(client, joao, item_payload)
+
+    first = register_item(client, maria, item_payload)
+    receive_item(client, attendant, first, point)
+
+    second = register_item(client, maria, item_payload)
+    receive_item(client, attendant, second, point)
+
+    notifications = list_notifications(client, joao)
+
+    assert [n["item_id"] for n in notifications] == [second, first]
+
+    first_created = datetime.fromisoformat(notifications[1]["created_at"])
+    second_created = datetime.fromisoformat(notifications[0]["created_at"])
+
+    assert second_created >= first_created
+
+
 def test_list_without_token_returns_401(client):
     response = client.get(URL)
 
@@ -257,7 +295,9 @@ def test_non_regular_user_cannot_list_notifications(client, signup, role):
     assert response.json() == PERMISSION_DENIED
 
 
-# --- RN32: privacidade ---
+# ==============================================================================
+# RN32 and RN52: privacy
+# ==============================================================================
 
 
 def test_rn32_notification_exposes_only_public_item(client, notification, item_payload):
@@ -270,7 +310,7 @@ def test_rn32_notification_exposes_only_public_item(client, notification, item_p
 
     item = notification["item"]
 
-    # A notificação deve reutilizar o mesmo DTO da listagem pública.
+    # RN32: notifications reuse the public item DTO.
     assert item == public_item
     assert item["public_description"] == item_payload["description"]
 
@@ -294,13 +334,9 @@ def test_rn32_notification_exposes_only_public_item(client, notification, item_p
 def test_rn32_rn52_document_notification_hides_private_description(
     client, clock, maria, joao, attendant, point, item_payload
 ):
-    categories = client.get("/v1/categories").json()
-
-    documents = next(category["id"] for category in categories if category["name"] == "Documentos")
-
     payload = {
         **item_payload,
-        "category_id": documents,
+        "category_id": category_id(client, "Documentos"),
         "description": "RG de João Silva",
     }
 
@@ -320,7 +356,53 @@ def test_rn32_rn52_document_notification_hides_private_description(
     assert "João Silva" not in response.text
 
 
-# --- PATCH /v1/notifications/{id}/read ---
+# ==============================================================================
+# Current item availability
+# ==============================================================================
+
+
+def test_notification_remains_after_item_is_reserved(client, joao, attendant, notification):
+    assert notification["item_available"] is True
+
+    response = client.post(
+        "/v1/claims",
+        json={
+            "item_id": notification["item_id"],
+            "answers": [
+                "Marca secreta",
+                "SERIE-1234",
+            ],
+        },
+        headers=joao.headers,
+    )
+
+    assert response.status_code == 201
+    claim_id = response.json()["id"]
+
+    response = client.post(
+        f"/v1/claims/{claim_id}/approve",
+        headers=attendant.headers,
+    )
+
+    assert response.status_code == 200
+
+    [saved] = list_notifications(client, joao)
+
+    # The notification remains, but the item is no longer available.
+    assert saved["id"] == notification["id"]
+    assert saved["item_id"] == notification["item_id"]
+    assert saved["item_available"] is False
+    assert "status" not in saved["item"]
+
+    public_response = client.get("/v1/items")
+    assert public_response.status_code == 200
+
+    assert notification["item_id"] not in [item["id"] for item in public_response.json()]
+
+
+# ==============================================================================
+# PATCH /v1/notifications/{id}/read
+# ==============================================================================
 
 
 def test_owner_marks_notification_as_read(client, clock, joao, notification):
@@ -339,10 +421,10 @@ def test_owner_marks_notification_as_read(client, clock, joao, notification):
     assert body["read_at"] is not None
     assert datetime.fromisoformat(body["read_at"]) == clock.now()
 
-    # Uma nova requisição comprova a persistência da leitura.
+    # A new request confirms that the change was persisted.
     [saved] = list_notifications(client, joao)
 
-    assert saved["read_at"] == body["read_at"]
+    assert datetime.fromisoformat(saved["read_at"]) == datetime.fromisoformat(body["read_at"])
 
 
 def test_marking_notification_twice_preserves_first_read_at(client, clock, joao, notification):
@@ -350,8 +432,8 @@ def test_marking_notification_twice_preserves_first_read_at(client, clock, joao,
 
     first = client.patch(url, headers=joao.headers)
     assert first.status_code == 200
-    first_read_at = first.json()["read_at"]
 
+    first_read_at = first.json()["read_at"]
     assert first_read_at is not None
 
     clock.current += timedelta(hours=2)
@@ -359,10 +441,45 @@ def test_marking_notification_twice_preserves_first_read_at(client, clock, joao,
     second = client.patch(url, headers=joao.headers)
     assert second.status_code == 200
 
-    assert second.json()["read_at"] == first_read_at
+    assert datetime.fromisoformat(second.json()["read_at"]) == datetime.fromisoformat(first_read_at)
 
     [saved] = list_notifications(client, joao)
-    assert saved["read_at"] == first_read_at
+
+    assert datetime.fromisoformat(saved["read_at"]) == datetime.fromisoformat(first_read_at)
+
+
+def test_reading_notification_does_not_affect_other_user(
+    client, clock, maria, joao, carla, attendant, point, item_payload
+):
+    create_report(client, joao, item_payload)
+    create_report(client, carla, item_payload)
+
+    item_id = register_item(client, maria, item_payload)
+    receive_item(client, attendant, item_id, point)
+
+    [joao_notification] = list_notifications(client, joao)
+    [carla_notification] = list_notifications(client, carla)
+
+    assert joao_notification["item_id"] == item_id
+    assert carla_notification["item_id"] == item_id
+
+    assert joao_notification["id"] != carla_notification["id"]
+    assert joao_notification["read_at"] is None
+    assert carla_notification["read_at"] is None
+
+    response = client.patch(
+        read_url(joao_notification["id"]),
+        headers=joao.headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["read_at"] is not None
+
+    [saved_joao] = list_notifications(client, joao)
+    [saved_carla] = list_notifications(client, carla)
+
+    assert saved_joao["read_at"] is not None
+    assert saved_carla["read_at"] is None
 
 
 def test_other_user_and_unknown_notification_return_same_404(client, joao, carla, notification):
@@ -380,7 +497,7 @@ def test_other_user_and_unknown_notification_return_same_404(client, joao, carla
     assert unknown_response.status_code == 404
     assert other_response.json() == unknown_response.json()
 
-    # A tentativa de outro usuário não modifica a notificação.
+    # Unauthorized attempts must not modify the notification.
     [saved] = list_notifications(client, joao)
 
     assert saved["read_at"] is None
