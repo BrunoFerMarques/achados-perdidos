@@ -1,4 +1,3 @@
-
 from datetime import datetime
 
 from sqlalchemy import BigInteger, ForeignKey, Identity, UniqueConstraint, func
@@ -10,22 +9,21 @@ from models.base import Base
 class Notification(Base):
     __tablename__ = "notifications"
     __table_args__ = (
-        UniqueConstraint("lost_report_id", "item_id"),
+        # RN31: um par relato e item nunca gera duas notificações
+        UniqueConstraint(
+            "lost_report_id",
+            "item_id",
+            name="notifications_lost_report_id_item_id_key",
+        ),
     )
 
-    id: Mapped[int] = mapped_column(
-        BigInteger, Identity(always=True), primary_key=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger, Identity(always=True), primary_key=True)
     lost_report_id: Mapped[int] = mapped_column(
         ForeignKey("lost_reports.id", ondelete="CASCADE"),
-        index=True,
     )
     item_id: Mapped[int] = mapped_column(
         ForeignKey("items.id", ondelete="CASCADE"),
+        index=True,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now()
-    )
-    read_at: Mapped[datetime | None] = mapped_column(
-        default=None
-    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    read_at: Mapped[datetime | None] = mapped_column(default=None)
