@@ -37,6 +37,9 @@ class NotificationRepository(Repository[Notification]):
                 Notification.lost_report_id == LostReport.id,
             )
             .where(LostReport.user_id == user_id)
-            .order_by(Notification.id.desc())
+            .order_by(
+                Notification.created_at.desc(),
+                Notification.id.desc(),
+            )
         )
         return self._session.scalars(stmt).all()
