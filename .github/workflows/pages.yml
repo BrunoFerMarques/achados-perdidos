@@ -35,12 +35,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # o site fica em /<nome do repo>/, então os arquivos do build precisam desse prefixo.
-      # O endereço da API vem da variável VITE_API_URL do repositório
+      # o site fica em /<nome do repo>/, então os arquivos do build precisam desse prefixo
       - name: Build
         run: npm run build -- --base=/${{ github.event.repository.name }}/
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          # a API de produção, no Render
+          VITE_API_URL: https://achados-perdidos-i8mk.onrender.com
 
       # o Pages não manda as rotas do React pro index.html; com o 404.html igual, dar F5 numa
       # rota como /reivindicacoes abre o app em vez da página de erro do GitHub
