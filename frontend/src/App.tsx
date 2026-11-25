@@ -1,9 +1,11 @@
 import { Route, Routes } from 'react-router'
 import { RequireAuth } from './auth/RequireAuth'
 import { RequireRole } from './auth/RequireRole'
-import { CLAIMANTS, STAFF } from './auth/roles'
+import { ADMINS, CLAIMANTS, STAFF } from './auth/roles'
 import { Header } from './components/Header'
 import { Page } from './components/Page'
+import { AdminPointsPage } from './pages/AdminPointsPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { ClaimItemRoute } from './pages/ClaimItemPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { HomePage } from './pages/HomePage'
@@ -60,6 +62,14 @@ function App() {
         <Route
           path="/atendimento/historico"
           element={<RequireRole roles={STAFF}><HistoryPage /></RequireRole>}
+        />
+        <Route
+          path="/admin/pontos"
+          element={<RequireRole roles={ADMINS}><AdminPointsPage /></RequireRole>}
+        />
+        <Route
+          path="/admin/usuarios"
+          element={<RequireRole roles={ADMINS}><AdminUsersPage /></RequireRole>}
         />
         <Route
           path="*"
