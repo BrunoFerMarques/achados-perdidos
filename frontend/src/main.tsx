@@ -7,7 +7,8 @@ import { AuthProvider } from './auth/AuthContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* "/" local, "/achados-perdidos/" no GitHub Pages (vem do --base do build) */}
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <App />
       </AuthProvider>
