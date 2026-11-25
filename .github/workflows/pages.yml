@@ -1,0 +1,77 @@
+name: Pages
+
+# publica o frontend no GitHub Pages depois que o CI passa no master
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# um deploy por vez, sem cancelar o que já começou
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # só com o CI verde de um push no master (um PR de fork com branch "master" também dispara o
+    # workflow_run, por isso o event == 'push'), ou na mão a partir do master
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # o mesmo commit que o CI testou
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # o npm ci roda scripts de pacotes, então o token não fica salvo no .git
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # o site fica em /<nome do repo>/, então os arquivos do build precisam desse prefixo
+      - name: Build
+        run: npm run build -- --base=/${{ github.event.repository.name }}/
+        env:
+          # a API de produção, no Render
+          VITE_API_URL: https://achados-perdidos-i8mk.onrender.com
+
+      # o Pages não manda as rotas do React pro index.html; com o 404.html igual, dar F5 numa
+      # rota como /reivindicacoes abre o app em vez da página de erro do GitHub
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # só este job publica, então só ele recebe essas permissões
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

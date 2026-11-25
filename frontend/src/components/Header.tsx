@@ -22,7 +22,7 @@ export function Header() {
     <header className="header">
       <div className="header-inner">
         <Link to="/" className="brand">
-          <img src="/favicon.svg" alt="" width={28} height={28} />
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />
           Achados e Perdidos
         </Link>
         <nav aria-label="Menu principal">

@@ -170,7 +170,8 @@ O frontend (`frontend/`) é uma SPA em React com TypeScript, criada com o Vite. 
 - **A retirada começa pelo balcão.** O atendente escolhe o ponto em que está, vê quem aguarda retirada ali (o código só vale onde o item está, RN45), digita o código que a pessoa mostra e marca o documento conferido, com o nome dela na tela (RN46).
 - **Criar conta já entra.** A `SignUpPage` cadastra (`usersApi.register`) e chama o `login` em seguida; se só o login falhar, avisa que a conta já existe. O papel nunca vai no pedido: a API sempre cria `usuario`. Vindo de uma tela protegida, a pessoa volta para ela, como no login.
 - **Sair leva ao mural.** Se a pessoa ficasse numa tela protegida, o `RequireAuth` guardaria aquela tela para o próximo login, e quem entrasse com outro papel cairia em "Acesso negado".
-- **CORS no `api.py`.** As origens aceitas vêm de `CORS_ORIGINS`; em produção, ela precisa ter o endereço do site.
+- **CORS no `api.py`.** As origens aceitas vêm de `CORS_ORIGINS`; em produção, ela precisa ter o endereço do site (`https://brunofermarques.github.io`, sem o caminho).
+- **No Pages, o site roda em `/achados-perdidos/`.** O build recebe `--base` com esse caminho, e o `BrowserRouter` usa `basename={import.meta.env.BASE_URL}`, então `Link` e `navigate` já saem com o prefixo. Arquivo de `public/` usado no JSX leva `${import.meta.env.BASE_URL}` na frente: um `src="/favicon.svg"` funciona local e quebra no Pages. O `404.html` é cópia do `index.html`, para o F5 numa rota abrir o app.
 
 ### Referências
 
