@@ -14,4 +14,5 @@ class NotificationOut(BaseModel):
     item_id: int
     created_at: datetime
     read_at: datetime | None
+    item_available: bool
     item: ItemPublicOut

@@ -73,6 +73,12 @@ class ItemRepository(Repository[Item]):
         stmt = stmt.order_by(Item.found_date.desc(), Item.id.desc())
         return self._session.scalars(stmt).all()
 
-    def list_available(self) -> Sequence[Item]:
-        stmt = select(Item).where(Item.status == ItemStatus.AVAILABLE).order_by(Item.id)
+    def list_available(self, category_id: int | None = None) -> Sequence[Item]:
+        stmt = select(Item).where(Item.status == ItemStatus.AVAILABLE)
+
+        if category_id is not None:
+            stmt = stmt.where(Item.category_id == category_id)
+
+        stmt = stmt.order_by(Item.id)
+
         return self._session.scalars(stmt).all()

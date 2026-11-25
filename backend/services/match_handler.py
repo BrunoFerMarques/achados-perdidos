@@ -10,6 +10,15 @@ logger = logging.getLogger(__name__)
 
 
 class MatchHandler:
+    """Process matches after the originating operation commits.
+
+    The caller must commit its changes before invoking this handler.
+    Each event runs in a separate transaction.
+
+    If matching fails, all notifications from that event are
+    rolled back without undoing the originating operation.
+    """
+
     def __init__(
         self,
         uow: UnitOfWork,
@@ -24,7 +33,7 @@ class MatchHandler:
             if item.status != ItemStatus.AVAILABLE:
                 return
 
-            for report in self._uow.lost_reports.list_active():
+            for report in self._uow.lost_reports.list_active(category_id=item.category_id):
                 self._match(report, item)
 
             self._uow.commit()
@@ -39,14 +48,14 @@ class MatchHandler:
             if report.status != LostReportStatus.ATIVO:
                 return
 
-            for item in self._uow.items.list_available():
+            for item in self._uow.items.list_available(category_id=report.category_id):
                 self._match(report, item)
 
             self._uow.commit()
 
         except Exception:
             self._uow.rollback()
-            logger.exception("Erro no match de relato de perda")
+            logger.exception("Erro no match de relato criado")
 
     def _match(self, report: LostReport, item: Item) -> None:
         result = calculate_match(report, item, self._config)

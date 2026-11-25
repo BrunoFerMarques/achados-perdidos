@@ -2,6 +2,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import selectinload
 
 from models.lost_report import LostReport
 from models.notification import Notification
@@ -41,10 +42,11 @@ class NotificationRepository(Repository[Notification]):
                 Notification.created_at.desc(),
                 Notification.id.desc(),
             )
+            .options(selectinload(Notification.item))
         )
         return self._session.scalars(stmt).all()
 
-    def get_by_user(self, notification_id: int, user_id: int) -> Notification | None:
+    def get_by_user_for_update(self, notification_id: int, user_id: int) -> Notification | None:
         stmt = (
             select(Notification)
             .join(

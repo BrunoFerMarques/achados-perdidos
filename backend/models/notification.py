@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, ForeignKey, Identity, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from domain.items import ItemStatus
 from models.base import Base
 from models.item import Item
 
@@ -30,3 +31,7 @@ class Notification(Base):
     read_at: Mapped[datetime | None] = mapped_column(default=None)
 
     item: Mapped[Item] = relationship()
+
+    @property
+    def item_available(self) -> bool:
+        return self.item.status == ItemStatus.AVAILABLE
