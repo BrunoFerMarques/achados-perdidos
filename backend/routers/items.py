@@ -59,6 +59,12 @@ def list_registered_items(current_user: CurrentUserDep, items: ItemServiceDep):
     return items.list_registered(current_user)
 
 
+@router.get("/mine", response_model=list[ItemOut])
+def list_my_items(current_user: CurrentUserDep, items: ItemServiceDep):
+    # RN53: the finder follows the status of what they registered; ItemOut has no claimant
+    return items.list_mine(current_user)
+
+
 @router.post("/{item_id}/transfer", response_model=ItemTransferOut)
 def transfer_item(
     item_id: int, payload: TransferIn, current_user: CurrentUserDep, items: ItemServiceDep
