@@ -72,3 +72,7 @@ class ItemRepository(Repository[Item]):
         # newest first; the id breaks ties between items found on the same day
         stmt = stmt.order_by(Item.found_date.desc(), Item.id.desc())
         return self._session.scalars(stmt).all()
+
+    def list_available(self) -> Sequence[Item]:
+        stmt = select(Item).where(Item.status == ItemStatus.AVAILABLE).order_by(Item.id)
+        return self._session.scalars(stmt).all()

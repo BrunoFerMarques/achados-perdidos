@@ -65,3 +65,6 @@ class UnitOfWork:
             if conflict is None:
                 raise
             raise conflict() from None
+
+    def rollback(self) -> None:
+        self._session.rollback()

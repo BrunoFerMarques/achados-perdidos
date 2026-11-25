@@ -21,6 +21,7 @@ from services.color import ColorService
 from services.item import ItemService
 from services.location import LocationService
 from services.lost_report import LostReportService
+from services.match_handler import MatchHandler
 from services.token import TokenService
 from services.user import UserService
 
@@ -83,7 +84,8 @@ CollectionPointServiceDep = Annotated[CollectionPointService, Depends(get_collec
 
 
 def get_item_service(uow: UnitOfWorkDep, clock: ClockDep) -> ItemService:
-    return ItemService(uow, clock)
+    handler = MatchHandler(uow)
+    return ItemService(uow, clock, handler.on_item_available)
 
 
 ItemServiceDep = Annotated[ItemService, Depends(get_item_service)]
@@ -112,7 +114,8 @@ AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 
 def get_lost_report_service(uow: UnitOfWorkDep) -> LostReportService:
-    return LostReportService(uow)
+    handler = MatchHandler(uow)
+    return LostReportService(uow, handler.on_report_created)
 
 
 LostReportServiceDep = Annotated[LostReportService, Depends(get_lost_report_service)]

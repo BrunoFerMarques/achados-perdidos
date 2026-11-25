@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 
 from domain.clock import Clock
@@ -27,9 +27,15 @@ class ItemService:
     """Itens achados e transferência entre pontos. O achador vem do token, nunca do corpo, e as
     datas do histórico vêm do relógio injetável."""
 
-    def __init__(self, uow: UnitOfWork, clock: Clock):
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        clock: Clock,
+        on_item_available: Callable[[Item], None] | None = None,
+    ):
         self._uow = uow
         self._clock = clock
+        self._on_item_available = on_item_available
 
     def register(
         self,
@@ -93,6 +99,10 @@ class ItemService:
         if description is not None:
             item.description = description
         self._uow.commit()
+        # RN30: notify after persisting the item
+        if self._on_item_available is not None:
+            self._on_item_available(item)
+
         return item
 
     def list_registered(self, actor: User) -> Sequence[Item]:
@@ -123,6 +133,10 @@ class ItemService:
         ensure(can_operate_item(actor, item.transfer_to_id, self._point_ids(actor)))
         item.arrive(by=actor.id, at=self._clock.now())
         self._uow.commit()
+        # RN30: the transferred item is available again
+        if self._on_item_available is not None:
+            self._on_item_available(item)
+
         return item
 
     def list_in_transfer(self, actor: User) -> Sequence[Item]:
