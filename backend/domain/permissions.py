@@ -110,3 +110,11 @@ def can_access_lost_report(actor: Actor, owner_id: int) -> bool:
     # design decision: the scope is silent on who may view or close a report,
     # so only the owner can
     return actor.role == Role.USUARIO and actor.id == owner_id
+
+
+def can_list_notifications(actor: Actor) -> bool:
+    return actor.role == Role.USUARIO
+
+
+def can_access_notification(actor: Actor, owner_id: int) -> bool:
+    return actor.role == Role.USUARIO and actor.id == owner_id

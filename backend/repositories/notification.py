@@ -43,3 +43,18 @@ class NotificationRepository(Repository[Notification]):
             )
         )
         return self._session.scalars(stmt).all()
+
+    def get_by_user(self, notification_id: int, user_id: int) -> Notification | None:
+        stmt = (
+            select(Notification)
+            .join(
+                LostReport,
+                Notification.lost_report_id == LostReport.id,
+            )
+            .where(
+                Notification.id == notification_id,
+                LostReport.user_id == user_id,
+            )
+            .with_for_update(of=Notification)
+        )
+        return self._session.scalar(stmt)

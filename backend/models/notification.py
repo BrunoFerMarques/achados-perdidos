@@ -1,9 +1,10 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, ForeignKey, Identity, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
+from models.item import Item
 
 
 class Notification(Base):
@@ -27,3 +28,5 @@ class Notification(Base):
     )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     read_at: Mapped[datetime | None] = mapped_column(default=None)
+
+    item: Mapped[Item] = relationship()

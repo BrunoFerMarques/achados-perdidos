@@ -7,6 +7,7 @@ from typing import Annotated
 from argon2 import PasswordHasher
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from services.notification import NotificationService
 
 from db import SessionDep
 from domain.clock import Clock, SystemClock
@@ -132,3 +133,10 @@ def get_current_user(
 
 # rota com esse parâmetro só roda com usuário logado
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+def get_notification_service(uow: UnitOfWorkDep, clock: ClockDep) -> NotificationService:
+    return NotificationService(uow, clock)
+
+
+NotificationServiceDep = Annotated[NotificationService, Depends(get_notification_service)]
