@@ -1,6 +1,6 @@
 """Service for managing lost-item reports."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 
 from domain.errors import (
@@ -24,8 +24,13 @@ from repositories.unit_of_work import UnitOfWork
 class LostReportService:
     """Lost item report use cases. Enforces permissions and business validations."""
 
-    def __init__(self, uow: UnitOfWork):
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        on_report_created: Callable[[LostReport], None] | None = None,
+    ):
         self._uow = uow
+        self._on_report_created = on_report_created
 
     def create(
         self,
@@ -57,6 +62,11 @@ class LostReportService:
         )
         self._uow.lost_reports.add(report)
         self._uow.commit()
+
+        # RN30: check items after persisting the report
+        if self._on_report_created is not None:
+            self._on_report_created(report)
+
         return report
 
     def get(self, actor: User, report_id: int) -> LostReport:

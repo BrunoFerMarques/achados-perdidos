@@ -12,13 +12,15 @@ from repositories.base import Repository
 class LostReportRepository(Repository[LostReport]):
     model = LostReport
 
-    def list_active(self) -> Sequence[LostReport]:
-        """Returns all active reports, required for the matching algorithm (RN30)."""
-        stmt = (
-            select(LostReport)
-            .where(LostReport.status == LostReportStatus.ATIVO)
-            .order_by(LostReport.id)
-        )
+    def list_active(self, category_id: int | None = None) -> Sequence[LostReport]:
+        """Returns active reports, optionally filtered by category (RN30)."""
+        stmt = select(LostReport).where(LostReport.status == LostReportStatus.ATIVO)
+
+        if category_id is not None:
+            stmt = stmt.where(LostReport.category_id == category_id)
+
+        stmt = stmt.order_by(LostReport.id)
+
         return self._session.scalars(stmt).all()
 
     def list_by_user(self, user_id: int) -> Sequence[LostReport]:
