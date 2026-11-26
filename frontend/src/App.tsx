@@ -10,6 +10,7 @@ import { ClaimItemRoute } from './pages/ClaimItemPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { LostReportsPage } from './pages/LostReportsPage'
 import { MyClaimsPage } from './pages/MyClaimsPage'
 import { MyItemsPage } from './pages/MyItemsPage'
 import { PickupPage } from './pages/PickupPage'
@@ -38,6 +39,10 @@ function App() {
         <Route
           path="/itens/:id/reivindicar"
           element={<RequireRole roles={CLAIMANTS}><ClaimItemRoute /></RequireRole>}
+        />
+        <Route
+          path="/perdi-algo"
+          element={<RequireRole roles={CLAIMANTS}><LostReportsPage /></RequireRole>}
         />
         <Route
           path="/reivindicacoes"

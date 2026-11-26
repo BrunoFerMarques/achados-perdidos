@@ -1,4 +1,4 @@
-import type { ClaimStatus, CustodyEvent, ItemStatus, Role } from './api/types'
+import type { ClaimStatus, CustodyEvent, ItemStatus, LostReportStatus, Role } from './api/types'
 
 export const ROLE: Record<Role, string> = {
   usuario: 'usuário',
@@ -39,6 +39,12 @@ export const CUSTODY_EVENT: Record<CustodyEvent, string> = {
   expiracao: 'Prazo de guarda vencido',
   destinacao: 'Doado ou descartado',
   cancelamento: 'Registro cancelado',
+}
+
+export const LOST_REPORT_STATUS: Record<LostReportStatus, string> = {
+  ativo: 'Procurando',
+  encerrado: 'Encerrado',
+  expirado: 'Vencido (60 dias)',
 }
 
 export function formatDateTime(iso: string): string {

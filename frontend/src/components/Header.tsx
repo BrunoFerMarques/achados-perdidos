@@ -39,7 +39,10 @@ export function Header() {
               </>
             )}
             {user && CLAIMANTS.includes(user.role) && (
-              <NavLink to="/reivindicacoes">Minhas reivindicações</NavLink>
+              <>
+                <NavLink to="/perdi-algo">Perdi algo</NavLink>
+                <NavLink to="/reivindicacoes">Minhas reivindicações</NavLink>
+              </>
             )}
           </div>
           {isStaff && (

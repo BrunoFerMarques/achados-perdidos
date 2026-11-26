@@ -185,3 +185,25 @@ export type ReceiveIn = {
   collection_point_id: number
   description: string
 }
+// o relato de quem perdeu algo (LostReportOut): ativo até achar, encerrar ou vencer (RN33)
+export type LostReportStatus = 'ativo' | 'encerrado' | 'expirado'
+
+export type LostReport = {
+  id: number
+  category_id: number
+  location_id: number
+  color_id: number
+  description: string
+  lost_date: string
+  status: LostReportStatus
+  created_at: string
+}
+
+// o corpo de POST /v1/lost-reports (LostReportCreate): o dono vem do token
+export type LostReportCreate = {
+  category_id: number
+  location_id: number
+  color_id: number
+  description: string
+  lost_date: string
+}
