@@ -20,6 +20,7 @@ from repositories.custody import CustodyRepository
 from repositories.item import ItemRepository
 from repositories.location import LocationRepository
 from repositories.lost_report import LostReportRepository
+from repositories.notification import NotificationRepository
 from repositories.user import UserRepository
 
 # constraints únicas cuja violação é erro de negócio, não bug
@@ -47,6 +48,7 @@ class UnitOfWork:
         self.items = ItemRepository(session)
         self.collection_point_attendants = CollectionPointAttendantRepository(session)
         self.lost_reports = LostReportRepository(session)
+        self.notifications = NotificationRepository(session)
         self.claims = ClaimRepository(session)
         self.custody = CustodyRepository(session)
 
@@ -63,3 +65,6 @@ class UnitOfWork:
             if conflict is None:
                 raise
             raise conflict() from None
+
+    def rollback(self) -> None:
+        self._session.rollback()
