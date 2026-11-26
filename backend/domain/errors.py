@@ -154,3 +154,7 @@ class ItemAlreadyAtThisPoint(InvalidRequestError):
 
 class ItemNotInTransfer(ConflictError):
     message = "O item não está em transferência"
+
+
+class NotificationNotFound(NotFoundError):
+    message = "Notificação não encontrada"
