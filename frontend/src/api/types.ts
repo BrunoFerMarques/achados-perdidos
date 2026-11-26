@@ -207,3 +207,14 @@ export type LostReportCreate = {
   description: string
   lost_date: string
 }
+
+// um aviso de match (NotificationOut, RN30 a RN32): só a parte pública do item, nunca o achador
+export type Notification = {
+  id: number
+  lost_report_id: number
+  item_id: number
+  created_at: string
+  read_at: string | null
+  item_available: boolean
+  item: PublicItem
+}

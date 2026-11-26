@@ -12,6 +12,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { LostReportsPage } from './pages/LostReportsPage'
 import { MyClaimsPage } from './pages/MyClaimsPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 import { MyItemsPage } from './pages/MyItemsPage'
 import { PickupPage } from './pages/PickupPage'
 import { ReceiveItemsPage } from './pages/ReceiveItemsPage'
@@ -43,6 +44,10 @@ function App() {
         <Route
           path="/perdi-algo"
           element={<RequireRole roles={CLAIMANTS}><LostReportsPage /></RequireRole>}
+        />
+        <Route
+          path="/avisos"
+          element={<RequireRole roles={CLAIMANTS}><NotificationsPage /></RequireRole>}
         />
         <Route
           path="/reivindicacoes"

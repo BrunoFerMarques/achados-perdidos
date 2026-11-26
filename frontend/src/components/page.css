@@ -270,3 +270,8 @@
   font-size: 28px;
   letter-spacing: 6px;
 }
+
+/* aviso já lido: continua na lista, mas apagado */
+.card.read {
+  opacity: 0.65;
+}

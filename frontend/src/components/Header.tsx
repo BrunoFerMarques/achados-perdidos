@@ -1,5 +1,6 @@
 import { startTransition } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
+import { useUnreadCount } from '../api/notifications'
 import { ADMINS, CLAIMANTS, STAFF } from '../auth/roles'
 import { useAuth } from '../auth/useAuth'
 import { ROLE } from '../labels'
@@ -10,6 +11,8 @@ export function Header() {
   const { user, loading, logout } = useAuth()
   const navigate = useNavigate()
   const isStaff = user !== null && STAFF.includes(user.role)
+  const isClaimant = user !== null && CLAIMANTS.includes(user.role)
+  const unread = useUnreadCount(isClaimant)
 
   // vai para o mural: ficando na tela, o RequireAuth a guardaria para o login da próxima pessoa.
   // O navigate do react-router roda como transition, que o React deixa para depois; com o logout
@@ -38,10 +41,15 @@ export function Header() {
                 <NavLink to="/itens/meus">Meus itens</NavLink>
               </>
             )}
-            {user && CLAIMANTS.includes(user.role) && (
+            {isClaimant && (
               <>
                 <NavLink to="/perdi-algo">Perdi algo</NavLink>
                 <NavLink to="/reivindicacoes">Minhas reivindicações</NavLink>
+                {/* o número só aparece quando há aviso sem ler */}
+                <NavLink to="/avisos" aria-label={unread > 0 ? `Avisos, ${unread} sem ler` : 'Avisos'}>
+                  🔔 Avisos
+                  {unread > 0 && <span className="badge">{unread}</span>}
+                </NavLink>
               </>
             )}
           </div>
