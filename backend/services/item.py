@@ -110,6 +110,11 @@ class ItemService:
         ensure(can_receive_items(actor))
         return self._uow.items.list_registered()
 
+    def list_mine(self, actor: User) -> Sequence[Item]:
+        # RN53: no ensure, everyone follows the items they registered; the actor comes from the
+        # token, so nobody asks for someone else's
+        return self._uow.items.list_by_finder(actor.id)
+
     def transfer(self, actor: User, item_id: int, transfer_to_id: int) -> Item:
         # checa o papel antes pra usuário comum não travar a linha nem descobrir nada do item
         ensure(can_transfer_items(actor))

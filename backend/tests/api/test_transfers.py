@@ -193,12 +193,14 @@ def test_rn06_transfer_writes_the_departure_at_the_origin_and_the_arrival_at_the
             "event": "transferencia_saida",
             "collection_point_id": origin,
             "actor_id": ana.id,
+            "actor_name": "Ana Lima",
             "at": iso(sent_at),
         },
         {
             "event": "transferencia_chegada",
             "collection_point_id": destination,
             "actor_id": carlos.id,
+            "actor_name": "Carlos Reis",
             "at": iso(clock.now()),
         },
     ]

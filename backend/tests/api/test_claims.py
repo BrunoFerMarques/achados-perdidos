@@ -5,6 +5,7 @@ from datetime import timedelta
 import psycopg
 import pytest
 
+from domain.items import DOCUMENT_TEXT
 from domain.roles import Role
 
 ADMIN = {"name": "Admin", "email": "admin@example.com", "password": "senha-do-admin"}
@@ -22,6 +23,15 @@ def set_item_status(item_id: int, status: str) -> None:
     # coloca o item direto no status, sem passar pelo recebimento ou pela transferência
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         conn.execute("UPDATE items SET status = %s WHERE id = %s", (status, item_id))
+
+
+def make_it_a_document(item_id: int, description: str) -> None:
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        conn.execute(
+            "UPDATE items SET description = %s, "
+            "category_id = (SELECT id FROM categories WHERE name = 'Documentos') WHERE id = %s",
+            (description, item_id),
+        )
 
 
 def item_status(item_id: int) -> str:
@@ -553,6 +563,7 @@ def test_rn21_rn53_claimant_sees_only_the_status_the_point_and_the_code(
     assert mine == {
         "id": pending["id"],
         "item_id": item,
+        "item_public_description": "Garrafa azul com adesivo",
         "status": "rejeitada",
         "collection_point_id": point,
         "pickup_code": None,
@@ -586,6 +597,21 @@ def test_cancelling_a_rejected_claim_is_409(client, joao, item, clock):
     response = client.post(f"{URL}/{rejected['id']}/cancel", headers=joao.headers)
 
     assert response.status_code == 409
+
+
+def test_rn52_claimant_never_reads_the_description_of_a_document(
+    client, joao, attendant, item, clock
+):
+    make_it_a_document(item, "RG de Pedro Alves")
+    claim(client, joao, item)
+
+    mine = client.get(f"{URL}/me", headers=joao.headers)
+    review = client.get(f"{URL}/pending", headers=attendant.headers)
+
+    assert mine.json()[0]["item_public_description"] == DOCUMENT_TEXT
+    assert "Pedro Alves" not in mine.text
+    # o atendente precisa da original pra achar o objeto
+    assert review.json()[0]["item_description"] == "RG de Pedro Alves"
 
 
 # --- análise do atendente ---
@@ -827,6 +853,7 @@ def test_rn06_pickup_writes_the_return_in_the_history(client, joao, attendant, i
         "event": "devolucao",
         "collection_point_id": point,
         "actor_id": attendant.id,
+        "actor_name": "Ana Lima",
         "at": clock.now().isoformat().replace("+00:00", "Z"),
     }
 

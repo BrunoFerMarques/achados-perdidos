@@ -29,6 +29,16 @@ class ItemRepository(Repository[Item]):
         )
         return self._session.scalars(stmt).all()
 
+    def list_by_finder(self, finder_id: int) -> Sequence[Item]:
+        """Everything this person registered, newest first. The questions come along for ItemOut."""
+        stmt = (
+            select(Item)
+            .where(Item.finder_id == finder_id)
+            .options(selectinload(Item.questions))
+            .order_by(Item.id.desc())
+        )
+        return self._session.scalars(stmt).all()
+
     def list_in_transfer(self, point_ids: set[int] | None) -> Sequence[Item]:
         """Itens em transferência, por ordem de registro. `point_ids` filtra os que saem ou
         chegam nesses pontos (None = todos). Traz as perguntas junto por causa do ItemOut."""

@@ -2,6 +2,7 @@
 # Etapa 08: receiving it at a collection point (RN02, RN41) and its custody history (RN06, RN42)
 # Etapa 09: the public listing, its filters and what it never shows (RN50, RN52)
 # Etapa 11: the staff's queue of registered items (RN02) and the description on receipt (RN51)
+# Etapa 15: who was responsible in the history (RN42) and the finder's own items (RN53)
 from datetime import datetime, timedelta
 
 import pytest
@@ -329,12 +330,14 @@ def test_rn42_history_has_the_registration_and_then_the_receipt(
             "event": "registro",
             "collection_point_id": point,
             "actor_id": maria.id,
+            "actor_name": "Maria Silva",
             "at": iso(registered_at),
         },
         {
             "event": "recebimento",
             "collection_point_id": point,
             "actor_id": attendant.id,
+            "actor_name": "Ana Lima",
             "at": iso(clock.now()),
         },
     ]
@@ -359,6 +362,16 @@ def test_rn06_approving_and_cancelling_a_claim_write_reserva_and_liberacao(
     assert [line["actor_id"] for line in lines[2:]] == [attendant.id, joao.id]
 
 
+def test_rn43_deleting_the_account_keeps_the_line_without_the_name(client, admin, maria, item):
+    client.delete(f"/v1/users/{maria.id}", headers=maria.headers)
+
+    [line] = history(client, admin, item).json()
+
+    assert line["event"] == "registro"
+    assert line["actor_id"] is None
+    assert line["actor_name"] is None
+
+
 def test_rn53_finder_cannot_see_the_history(client, maria, item):
     response = history(client, maria, item)
 
@@ -376,6 +389,67 @@ def test_history_of_an_unknown_item_is_404(client, admin):
     response = history(client, admin, 999)
 
     assert response.status_code == 404
+
+
+# --- the finder's own items (RN53) ---
+
+
+def mine(client, account):
+    return client.get(f"{URL}/mine", headers=account.headers)
+
+
+def test_my_items_require_login(client):
+    assert client.get(f"{URL}/mine").status_code == 401
+
+
+def test_rn53_my_items_lists_only_mine_newest_first(client, signup, maria, new_item):
+    joao = signup(JOAO)
+    first = client.post(URL, json=new_item, headers=maria.headers).json()
+    client.post(URL, json=new_item, headers=joao.headers)
+    second = client.post(URL, json=new_item, headers=maria.headers).json()
+
+    response = mine(client, maria)
+
+    assert response.status_code == 200
+    assert [found["id"] for found in response.json()] == [second["id"], first["id"]]
+
+
+def test_rn53_finder_follows_the_status(client, maria, attendant, item, point):
+    assert mine(client, maria).json()[0]["status"] == "registrado"
+
+    receive(client, attendant, item, point)
+
+    assert mine(client, maria).json()[0]["status"] == "disponivel"
+
+
+def test_rn53_finder_never_sees_who_claimed_the_item(client, signup, maria, attendant, item, point):
+    joao = signup(JOAO)
+    receive(client, attendant, item, point)
+    answers = ["Resposta 1", "Resposta 2", "Resposta 3"]
+    claim = client.post(
+        "/v1/claims", json={"item_id": item, "answers": answers}, headers=joao.headers
+    ).json()
+    client.post(f"/v1/claims/{claim['id']}/approve", headers=attendant.headers)
+
+    response = mine(client, maria)
+
+    [found] = response.json()
+    assert found["status"] == "reservado"
+    # the same fields as when Maria registered it, and nothing about João
+    assert set(found) == {
+        "id",
+        "category_id",
+        "location_id",
+        "color_id",
+        "collection_point_id",
+        "finder_id",
+        "description",
+        "found_date",
+        "status",
+        "created_at",
+        "questions",
+    }
+    assert "João" not in response.text
 
 
 # --- the public listing ---

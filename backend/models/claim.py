@@ -88,6 +88,16 @@ class Claim(Base):
         return self.item.collection_point_id
 
     @property
+    def item_description(self) -> str:
+        # a original, só pra equipe
+        return self.item.description
+
+    @property
+    def item_public_description(self) -> str:
+        # a mesma do mural (RN52): o reivindicante não pode ler o nome escrito num documento
+        return self.item.public_description
+
+    @property
     def pickup_deadline(self) -> datetime | None:
         return None if self.approved_at is None else pickup.pickup_deadline(self.approved_at)
 

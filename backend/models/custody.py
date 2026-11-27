@@ -3,9 +3,10 @@
 from datetime import datetime
 
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Identity
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
+from models.user import User
 
 
 class CustodyRecord(Base):
@@ -33,3 +34,10 @@ class CustodyRecord(Base):
     )
     # from the injected clock: RN04 will count the 60 days from the receipt
     at: Mapped[datetime]
+
+    # the way from actor_id to the person's name; not a column, so no migration
+    actor: Mapped[User | None] = relationship()
+
+    @property
+    def actor_name(self) -> str | None:
+        return None if self.actor is None else self.actor.name

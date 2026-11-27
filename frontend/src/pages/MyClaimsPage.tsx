@@ -32,7 +32,9 @@ export function MyClaimsPage() {
       {claims?.length === 0 && <p>Você ainda não reivindicou nenhum item.</p>}
       {claims?.map((claim) => (
         <section key={claim.id} className="card">
-          <h2>Item nº {claim.item_id}</h2>
+          <h2>
+            Item nº {claim.item_id}: {claim.item_public_description}
+          </h2>
           <p>
             <strong>{CLAIM_STATUS[claim.status]}</strong> · {pointName(claim.collection_point_id)}
           </p>

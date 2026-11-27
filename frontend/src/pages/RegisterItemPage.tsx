@@ -4,36 +4,15 @@ import { useCatalog } from '../api/catalog'
 import { useAction } from '../api/hooks'
 import { itemsApi } from '../api/items'
 import { usePoints } from '../api/points'
-import type { Option, QuestionInput } from '../api/types'
+import type { QuestionInput } from '../api/types'
 import { FeedbackLine } from '../components/FeedbackLine'
+import { OptionSelect } from '../components/OptionSelect'
 import { Page } from '../components/Page'
 
 // RN20: from 2 to 5 verification questions (the API answers 422 outside that)
 const MIN_QUESTIONS = 2
 const MAX_QUESTIONS = 5
 const emptyQuestion: QuestionInput = { question: '', answer: '' }
-
-/** One required list field: the first entry is empty, so the browser asks to choose one. */
-function OptionSelect(props: {
-  label: string
-  value: string
-  options: Option[]
-  onChange: (value: string) => void
-}) {
-  return (
-    <label>
-      {props.label}
-      <select required value={props.value} onChange={(e) => props.onChange(e.target.value)}>
-        <option value="">Escolha…</option>
-        {props.options.map((option) => (
-          <option key={option.id} value={option.id}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
 
 /** Registering a found item: the object, where and when it was found, the counter it goes to,
  * and the questions only the owner can answer. */
